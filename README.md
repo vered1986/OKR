@@ -28,5 +28,5 @@ From src/baseline_system: `python compute_baseline_subtasks.py  ../../data/dev .
 
 The entailment component requires resources. The entity entailment resource files are found in the resources directory. The predicate entailment file is much larger, and we therefore provide the [script](resources/create_predicate_entailment_resource.py) to build it from the original resource (reverb_local_clsf_all.txt from [here](http://u.cs.biu.ac.il/~nlp/resources/downloads/predicative-entailment-rules-learned-using-local-and-global-algorithms/)).
 
-<b>Detailed description of the OKR object</b>
-TBD.
+## Detailed description of the OKR object:
+TBD
