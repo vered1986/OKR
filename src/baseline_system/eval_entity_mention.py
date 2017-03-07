@@ -23,7 +23,7 @@ nom_file = 'nominalizations/nominalizations.reuters.txt'
 NOM_LIST = [line.split('\t')[0] for line in open(nom_file)]
 
 # Don't use spacy tokenizer, because we originally used NLTK to tokenize the files and they are already tokenized
-nlp = English(parser=True, tagger=True, entity=False)
+nlp = English()
 def replace_tokenizer(nlp):
     old_tokenizer = nlp.tokenizer
     nlp.tokenizer = lambda string: old_tokenizer.tokens_from_list(string.split())
@@ -61,9 +61,11 @@ def evaluate_entity_mention(test_graphs):
     scores = []
 
     for graph in test_graphs:
+	print graph.name
+
 
         sents = {num: unicode(uncap_sentence(' '.join(sentence))) for num, sentence in graph.sentences.iteritems()}
-        sents = {key: sentence for key, sentence in sents.iteritems() if len(nlp(sentence)) == len(graph.sentences[key])}
+	sents = {key: sentence for key, sentence in sents.iteritems() if len(nlp(sentence)) == len(graph.sentences[key])}
 
         # NER entity
         ner_singles = [[s_num, num, tok.ent_iob, tok.tag_] for s_num, sentence in sents.iteritems() for num, tok in

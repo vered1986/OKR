@@ -22,7 +22,11 @@ from nltk.corpus import wordnet as wn
 from clustering_common import cluster_mentions
 
 # Don't use spacy tokenizer, because we originally used NLTK to tokenize the files and they are already tokenized
-nlp = English(parser=True, tagger=True, entity=False)
+nlp = spacy.load('en')
+
+def is_stop(w):
+	return w in spacy.en.STOP_WORDS
+
 
 def replace_tokenizer(nlp):
     old_tokenizer = nlp.tokenizer
@@ -108,7 +112,7 @@ def same_synset(x, y):
     x_synonyms = set([lemma.lower().replace('_', ' ') for synset in wn.synsets(x) for lemma in synset.lemma_names()])
     y_synonyms = set([lemma.lower().replace('_', ' ') for synset in wn.synsets(y) for lemma in synset.lemma_names()])
 
-    return len([w for w in x_synonyms.intersection(y_synonyms) if not nlp.is_stop(w)]) > 0
+    return len([w for w in x_synonyms.intersection(y_synonyms) if not is_stop(w)]) > 0
 
 
 def fuzzy_fit(x, y):
@@ -140,8 +144,8 @@ def partial_match(x, y):
     if fuzz.partial_ratio(' ' + x + ' ', ' ' + y + ' ') == 100:
         return True
 
-    x_words = [w for w in x.split() if not nlp.is_stop(w)]
-    y_words = [w for w in y.split() if not nlp.is_stop(w)]
+    x_words = [w for w in x.split() if not is_stop(w)]
+    y_words = [w for w in y.split() if not is_stop(w)]
 
     if len(x_words) == 0 or len(y_words) == 0:
         return False
@@ -153,11 +157,11 @@ def partial_match(x, y):
 
     # One word - check whether there is intersection between synsets
     if len(x_synonyms) == 1 and len(y_synonyms) == 1 and \
-                    len([w for w in x_synonyms[0].intersection(y_synonyms[0]) if not nlp.is_stop(w)]) > 0:
+                    len([w for w in x_synonyms[0].intersection(y_synonyms[0]) if not is_stop(w)]) > 0:
         return True
 
     # More than one word - align words from x with words from y
-    cost = -np.vstack([np.array([len([w for w in s1.intersection(s2) if not nlp.is_stop(w)]) for s1 in x_synonyms])
+    cost = -np.vstack([np.array([len([w for w in s1.intersection(s2) if not is_stop(w)]) for s1 in x_synonyms])
                        for s2 in y_synonyms])
     m = Munkres()
     cost = pad_to_square(cost)
