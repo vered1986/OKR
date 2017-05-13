@@ -1,0 +1,47 @@
+*****Running V2 conversion****
+in order to convert am xml ouput file to V2 object run:
+python -i  V2Conversion.py <oath to file>
+For example:
+python -i  V2Conversion.py ../../data/baseline/dev/armstrong_doping.xml 
+
+
+*****V2 class documentation****
+The code first translates the xml file into an OKR object (using OKR.py in this directory)
+and than coverges the OKR object into a V2 object with the following classes:
+
+V2.name #object_name
+V2.sentences #original sentences (same as in okr)
+V2.argument_alignment # a dictionary of node_id to a list of edges all belonging to the same argument of the node
+V2.nodes #a dictionary of node_id to node
+		Node.id #id of node- currenty "E+original_entity_id" or "P+original_proposition_id"
+		Node.name #name of node, the same as the name of original entity/proposition
+		Node.label #a set of all the mention terms of this node
+		Node.entailment=entailment #entailment graph for node (see entailment_graph object in okr)
+		Node.mentions #dictionary of mention_id to mention of node
+			NodeMention.id = id #id of mention - same as in okr (an int)
+        		NodeMention.sentence_id = sentence_id#sentence in which the mention appear
+        		NodeMention.indices = indices #indices of the mention
+       			NodeMention.term = term #words in the mention
+        		NodeMention.parent = parent #id of the node to which the node mention belong
+
+			
+V2.edges #a dictionary of edge_id to edge 
+	Edge.id #edge id - currently in the format of "Node_id_start_node+_+Node_id_end_node"
+	Edge.start_node#start node
+	Edge.end_node#end node
+	Edge.label# set of all terms of all mentions
+	Edge.mentions #dictionary of mention id to mention
+		Edge.EdgeMention.id#edge mention id - currently in the form of "original_proposition_id+_+original_mention_id" 
+        	Edge.EdgeMention.sentence_id #sentence of mention
+        	Edge.EdgeMention.indices #indices of mention
+       		Edge.EdgeMention.terms #terms of edge mention
+       		Edge.EdgeMention.template #template of edge mention
+        	Edge.EdgeMention.all_nodes #all nodes wich appear in the template
+		Edge.EdgeMention.embedded #edge mentions of embedded predicates in template. dictionary of embedded predicate to edge mentions. 
+		Edge.EdgeMention.embedded_edges #edges belonging to edge mentions of embedded predicates in template. 
+						#dictionary of embedded predicate to edges. 
+		Edge.EdgeMention.is_explicit #is edge created from explicit proposition (like in okr)
+		Edge.EdgeMention.main_pred #the main predicate of the edge
+		Edge.EdgeMention.parents #all edges in which the edge mention appear
+
+
