@@ -1,0 +1,62 @@
+OKR.py contains the class OKR which represents one annotated graph
+To use it, just import OKR.py in your program and use the function load_graph_from_file(<xml_input_file_name>) which transforms the xml into an OKR object.
+
+
+*The API of OKR object:*
+OKR.name	#name of the xml_file
+OKR.sentences 	# Dictionary of sentence id (starts from 1) to tokenized sentence
+OKR.ignored_indices #in version 5 and up-set of indices in original sentences that the annotators ignored because of non-factual data
+OKR.tweet_ids	#in version 5 and up-Dictionary of sentence id to tweet id
+OKR.entities 	# Dictionary of entity id to Entity object
+	*Entity object API:*
+	Entity.id 	#id of entity
+	Entity.name 	#name of entity (given by annotator)
+	Entity.terms	#all distinct terms used in entity
+	Entity.mentions	#dictionary of mention it to EntityMention object
+		*EntityMention object API:*
+		EntityMention.id	#id of entity mention 
+		EntityMention.sentence_id	#id of the sentence of the mention
+		EntityMention.indices 	#mention indices in sentence
+		EntityMention.terms	#mention terms
+		EntityMention.parent	#id of the entity to which the mention belong
+		str(EntityMention)	#returns a unique string for each mention composed of mention sentence id and indices.
+	Entity.entailment_graph	#entailment graph of entity
+		*Entailment_graph API:*
+		Entailment_graph.graph	# graph of terms
+       		Entailment_graph.mentions_graph	# graph of mention ids (each term is connected to one or more mention id)
+       		Entailment_graph.cotradictions_graph	# graph of contradictions - terms
+        	Entailment_graph.cotradictions_mention_graph	# graph of contradictions - mention_ids
+
+OKR.propositions 	# Dictionary of proposition id to Proposition object
+	*Proposition object API:*
+	Proposition.id	#id of proposition
+	Proposition.name	#name of proposition (given by annotator)
+	Proposition.terms	#all distinct terms used in proposition	
+	Proposition.attributor	#entity which attributed the proposition
+	Proposition.Entailment_graph #proposition entailment graph. see API above
+	Proposition.mentions	#dictionary of mention id to PropositionnMention
+		*PropositionMention object API:*
+		PropositionMention.id	#id of proposition mention 
+		PropositionMention.sentence_id	#id of the sentence of the mention
+		PropositionMention.indices 	#mention indices in sentence
+		PropositionMention.terms	#mention terms
+		PropositionMention.parent	#id of the proposition to which the mention belong
+		PropositionMention.is_explicit	# is explicit mention
+		str(PropositionnMention)	#returns a unique string for each mention composed of mention sentence id and indices.
+						#for implicit propositions it's composed on arguments indices
+		PropositionMention.argument_mentions #dictionary of argument id to ArggumentMention
+			*API of ArgumentMention:*
+			ArgumentMention.id	#argument id
+       			ArgumentMention.desc=desc	#argument decriptopn (QA-SRL quiestion)
+        		ArgumentMention.mention_type	#type of argument mention- entity or proposition
+        		ArgumentMention.parent_id	#id of parent (the entity or proposition that are mentioned in argument)
+        		ArgumentMention.parent_mention_id	#id of parent mention
+        		ArgumentMention.parent_indices	#indices of parent (entity or proposition) mention
+        		ArgumentMention.parent_name	#parent (entity or proposition) name
+			str(ArgumentMention)	#returns a unique string for each mention composed of proposition indices and parent indices.
+
+OKR.prop_mentions_by_key #dictionary of str(PropositionMention) to PropositionMention
+OKR.entity_mentions_by_key #dictionary of str(EntityMention) to EntityMention
+
+
+
