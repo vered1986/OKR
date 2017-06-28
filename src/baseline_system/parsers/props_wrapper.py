@@ -31,13 +31,11 @@ class PropSWrapper:
         # (ignore the textual tree representation)
         self.graph, _ = parseSentences(sent)[0]
 
-
-
 if __name__ == "__main__":
     """
     Simple unit tests
     """
     logging.basicConfig(level = logging.DEBUG)
     pw = PropSWrapper()
-    pw.parse("hello world")
-    logging.info(pformat(pw.g))
+    pw.parse("John wanted to fly")
+    logging.info(pformat(pw.graph))
