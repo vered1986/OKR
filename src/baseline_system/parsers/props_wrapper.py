@@ -109,7 +109,8 @@ class PropSWrapper:
         all_dependent_indexes = [word.index
                                  for props_rel, props_nodes in pred_node.neighbors().iteritems()
                                  for props_node in props_nodes
-                                 for word in props_node.text]
+                                 for word in props_node.text
+        ]
         return word_ind in all_dependent_indexes
 
     def get_dep_node(self, predicate_node):
@@ -120,7 +121,6 @@ class PropSWrapper:
         matching_dep_nodes = [node
                               for node in predicate_node.isPredicate[0].nodes()
                               if node.id in [w.index for w in predicate_node.text]]
-        
         assert(len(matching_dep_nodes) == 1)
         return matching_dep_nodes[0]
 
@@ -132,16 +132,19 @@ class PropSWrapper:
         """
         # Approach:
         # Identify nodes in dep tree which are related with to the predicate
-        # with one of PropS' ignore labels
+        # with one of PropS' ignore labels + preposition label
 
         assert(predicate_node.isPredicate)
         # Get the corresponding dep tree node
         dep_node = self.get_dep_node(predicate_node)
 
         # Returns a list of dep nodes which aren't dependent in the PropS graph
+        # and that are auxiliaries, according to PropS
         return [dep_node] + [dep_child
                              for dep_child in dep_node.get_children()
-                             if dep_child.parent_relation in ignore_labels]
+                             if (dep_child.parent_relation in PropSWrapper.AUX_LABELS) \
+                             and not (self.is_props_dependent(predicate_node,
+                                                              dep_child.id))]
 
 
     def get_template(self, predicate_node):
@@ -150,7 +153,9 @@ class PropSWrapper:
         :param predicate_node - A predicate node instance
         """
         assert(predicate_node.isPredicate)
-        dep_tree = predicate_node.isPredicate[0]
+        dep_tree = self.get_dep_node(predicate_node)
+
+        #TODO: Make use of self.get_mwp, identify args, and the gensyms
 
 
     @staticmethod
@@ -177,6 +182,12 @@ class PropSWrapper:
         """
         ent_counter += 1
         return "E{}".format(self.ent_counter)
+
+    # Constants
+    # Add a few labels to PropS' auxiliaries
+    AUX_LABELS = ignore_labels + ["prep",
+                                  "cc",
+    ]
 
 
 
