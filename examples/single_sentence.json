@@ -1,0 +1,5 @@
+{"Sentence": "The Syrian plane landed in Moscow",
+ "Entities": {"A1": "Syrian plane",
+              "A2": "Moscow"},
+ "Predicates": {"P1": {"Template": "<A1> lands in <A2>",
+                      "Bare predicate": "landed in"}}}
