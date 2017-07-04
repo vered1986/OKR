@@ -255,9 +255,10 @@ class PropSWrapper:
         self.predicates[predicate_symbol] = {"Bare predicate": bare_predicate_str,
                                              "Template": template}
 
-        # # For each argument - parse according to whether it's a predicate or an argument
-        # for rel, nodes in predicate_node.neighbors().iteritems():
-
+        ### TODO:
+        ### 1. Add entities by iterating over dep_entities and getting the entire subtree text
+        ###    (hopefully there's a props native for doing this)
+        ### 2. Known bug - John wanted to take the book from Bob and give it to Mary
 
     @staticmethod
     def get_node_original_text(node):
