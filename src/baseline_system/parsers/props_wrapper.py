@@ -1,11 +1,17 @@
-"""
+""" Usage:
+   props_wrapper
+
 Author: Gabi Stanovsky
 
     Abstraction over the PropS parser.
+    If ran with the interactive flag also starts a shell expecting raw sentences.
 """
 
+from docopt import docopt
 import logging
 from pprint import pprint, pformat
+from collections import defaultdict
+from operator import itemgetter
 
 from props.applications.run import parseSentences, load_berkeley
 from props.graph_representation.graph_wrapper import ignore_labels
@@ -30,9 +36,21 @@ class PropSWrapper:
         """
         self.pred_counter = 0
         self.ent_counter = 0
+        self.dep_tree = None
+        self.sentence = ''
+        self.entities = {}
+        self.predicates = {}
         # A dictionary mapping from token indices to element symbols
         # (either predicates or entitites)
         self.tok_ind_to_symbol = {}
+
+    def get_okr(self):
+        """
+        Get this sentence OKR in json format
+        """
+        return {"Sentence": self.sentence,
+                "Entities": self.entities,
+                "Predicates": self.predicates}
 
     def get_element_symbol(self, tok_ind, symbol_generator):
         """
@@ -42,7 +60,7 @@ class PropSWrapper:
         :param symbol_generator - func, to call in case the tok_ind is not associated
                                   with a symbol
         """
-        if tok_ind in self.tok_ind_to_symbol:
+        if tok_ind not in self.tok_ind_to_symbol:
             # generate symbol in case it doesn't exist
             self.tok_ind_to_symbol[tok_ind] = symbol_generator()
         return self.tok_ind_to_symbol[tok_ind]
@@ -58,6 +76,19 @@ class PropSWrapper:
         # Get PropS graph for this sentence
         # (ignore the textual tree representation)
         self.graph, _ = parseSentences(sent)[0]
+
+        # Get the dependency tree
+        self.dep_tree = self.graph.dep_tree.values()
+
+        # Get the tokenized sentence
+        self.sentence = self.get_sentence()
+
+    def get_sentence(self):
+        # Returns the tokenized sentence stored in this instance
+        # @return - string, space separated sentence
+        return " ".join([node.word
+                          for node in sorted(self.dep_tree,
+                                             key = lambda node: node.id)[1:]]) # Skip over ROOT node
 
     def get_predicates(self,
                        get_implicits,
@@ -119,9 +150,13 @@ class PropSWrapper:
         :param predicate_node - PropsNode
         """
         matching_dep_nodes = [node
-                              for node in predicate_node.isPredicate[0].nodes()
+                              for node in self.dep_tree
                               if node.id in [w.index for w in predicate_node.text]]
-        assert(len(matching_dep_nodes) == 1)
+        assert len(matching_dep_nodes) == 1,\
+            "Problems matching {}; nodes matched were:{}; dep tree: {}".format(predicate_node.text[0].index,
+                                                                               matching_dep_nodes,
+                                                                               self.dep_tree
+            )
         return matching_dep_nodes[0]
 
     def get_mwp(self,predicate_node):
@@ -146,16 +181,82 @@ class PropSWrapper:
                              and not (self.is_props_dependent(predicate_node,
                                                               dep_child.id))]
 
+    def get_node_ind(self, node):
+        """
+        Return the minimal index of either a props or dep node, hopefully it's unique.
+        Bridges over inconsistencies between PropS and dependency names for their indices.
+        """
+        try:
+            # First, try to treat this node as a PropS node
+            return min([w.index for w in node.text])
+
+        except:
+            # If fails, assume it's a dep node
+            return node.id
+
+    def get_props_neighbors(self, node):
+        """
+        Returns a flat list of neighbors.
+        @param node - Props node.
+        """
+        return [neighbor
+                for neighbors_list in node.neighbors().values()
+                for neighbor in neighbors_list]
+
 
     def get_template(self, predicate_node):
         """
-        Returns a multi-word predicate as a list of Word objects
-        :param predicate_node - A predicate node instance
+        Given a predicate node - returns the predicate and arguments involved
+        in this predicate
+        :param predicate_node - PropS node, from which to extract the predicate
         """
         assert(predicate_node.isPredicate)
         dep_tree = self.get_dep_node(predicate_node)
 
-        #TODO: Make use of self.get_mwp, identify args, and the gensyms
+        # Get the full bare predicate and generate a symbol for it
+        bare_predicate = self.get_mwp(predicate_node)
+        bare_predicate_str = " ".join([node.word for node in sorted(bare_predicate,
+                                                                    key = lambda node: node.id)])
+        predicate_symbol = self.get_element_symbol(self.get_node_ind(predicate_node),
+                                                   self._gensym_pred)
+        # Create template
+        ## Collect items participating it from predicates and arguments
+        predicate_items = [(node.id, node.word)
+                           for node in bare_predicate]
+
+        ## Get arguments which are predicates on their own
+        dep_preds = [node
+                     for node in self.get_props_neighbors(predicate_node)
+                     if node.isPredicate]
+
+        ## Get entity arguments
+        dep_entities = [node
+                        for node in self.get_props_neighbors(predicate_node)
+                        if (not node.isPredicate)]
+
+        # Concat, sort, and get the words forming the template
+        all_template_elements = predicate_items + \
+                                [(self.get_node_ind(node),
+                                  self.get_element_symbol(self.get_node_ind(node),
+                                                          self._gensym_pred))
+                                  for node in dep_preds] + \
+                                [(self.get_node_ind(node),
+                                  self.get_element_symbol(self.get_node_ind(node),
+                                                          self._gensym_ent))
+                                  for node in dep_entities]
+
+        logging.debug(all_template_elements)
+
+        template = " ".join(map(itemgetter(1),
+                                sorted(all_template_elements,
+                                       key = lambda (ind, word): ind))) 
+
+        # Store in this sentence's OKR
+        self.predicates[predicate_symbol] = {"Bare predicate": bare_predicate_str,
+                                             "Template": template}
+
+        # # For each argument - parse according to whether it's a predicate or an argument
+        # for rel, nodes in predicate_node.neighbors().iteritems():
 
 
     @staticmethod
@@ -169,45 +270,52 @@ class PropSWrapper:
                                   for w in
                                   sorted(n.original_text,
                                          key = lambda w: w.index)]))
-    def gensym_pred(self):
+    def _gensym_pred(self):
         """
-        Generate a unique predicate symbol name
+        Generate a unique predicate symbol name.
+        (Should be called from get_element_symbol)
         """
-        pred_counter += 1
+        self.pred_counter += 1
         return "P{}".format(self.pred_counter)
 
-    def gensym_ent(self):
+    def _gensym_ent(self):
         """
-        Generate a unique entity symbol name
+        Generate a unique entity symbol name.
+        (Should be called from get_element_symbol)
         """
-        ent_counter += 1
-        return "E{}".format(self.ent_counter)
+        self.ent_counter += 1
+        return "A{}".format(self.ent_counter)
 
     # Constants
     # Add a few labels to PropS' auxiliaries
-    AUX_LABELS = ignore_labels + ["prep",
-                                  "cc",
-    ]
+    AUX_LABELS = ["det", "neg", "aux",
+                  "auxpass", "prep", "cc",
+                  "conj"]
 
+def main(pw, sent):
+    """
+    Run a batch of test commands, prints to screen, may return some variables
+    for interactive inspection.
+    @param pw - PropSWrapper instance
+    @param sent - str, a raw sentence on which to run the commands.
+    """
+    pw.parse(sent)
+    preds = pw.get_predicates(get_implicits = False,
+                              get_zero_args = False,
+                              get_conj = False)
 
+    return pw.get_template(preds[0])
 
 if __name__ == "__main__":
     """
     Simple unit tests
     """
     logging.basicConfig(level = logging.DEBUG)
-    pw = PropSWrapper()
-    pw.parse("John, the new ambassador, wanted to take the box from Mary and give it to Bob ")
-    preds = pw.get_predicates(get_implicits = False,
-                              get_zero_args = False,
-                              get_conj = False)
-    logging.info(pformat(pw.graph))
-    mwps = [(p, pw.get_mwp(p))
-            for p in preds]
-    mwps_str = [(pw.props_node_to_string(pred),
-                 " ".join([n.word
-                          for n in sorted(mwp,
-                                          key = lambda n: n.id)]))
-                 for pred, mwp in mwps]
-    logging.info(pformat(mwps_str))
 
+    # Parse arguments
+    args = docopt(__doc__)
+
+    pw = PropSWrapper()
+    sent = "The Syrian plane landed in Moscow."
+    main(pw, sent)
+    logging.debug(pformat(pw.get_okr()))
