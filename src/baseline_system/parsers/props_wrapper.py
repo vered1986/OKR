@@ -88,7 +88,7 @@ class PropSWrapper:
         # @return - string, space separated sentence
         return " ".join([node.word
                           for node in sorted(self.dep_tree,
-                                             key = lambda node: node.id)[1:]]) # Skip over ROOT node
+                                             key = lambda node: node.id)[1:]])  # Skip over ROOT node
 
     def get_predicates(self,
                        get_implicits,
