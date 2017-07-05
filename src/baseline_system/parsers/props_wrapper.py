@@ -323,6 +323,5 @@ if __name__ == "__main__":
     # 3. Get OKR Json object
     okr = pw.get_okr()
     logging.info(pformat(okr))
-    return okr
 
 
