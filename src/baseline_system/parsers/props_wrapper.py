@@ -23,10 +23,20 @@ class PropSWrapper:
     Works in a parse-then-ask paradigm, where sentences are first parsed,
     and then certain inquires on them are supported.
     """
-    def __init__(self):
+    def __init__(self, get_implicits, get_zero_args, get_conj):
         """
         Inits the underlying Berkeley parser and other relevant initializations.
+        Populate the entities and predicates list of this sentence.
+        :param get_zero_args - Boolean controlling whether zero-argument predicates are
+                               returned.
+        :param get_implicits - Boolean controlling whether implicit predicates are
+                                returned.
+        :param get_conj - Boolean controlling whether conjunction predicates are
+                                returned.
         """
+        self.get_implicits = get_implicits
+        self.get_zero_args = get_zero_args
+        self.get_conj = get_conj
         load_berkeley(tokenize = False)
 
     def _init_internal_state(self):
@@ -83,6 +93,19 @@ class PropSWrapper:
         # Get the tokenized sentence
         self.sentence = self.get_sentence()
 
+        # Populate entities and predicates
+        self.parse_okr()
+
+    def parse_okr(self):
+        """
+        Populate the entities and predicates list of this sentence.
+        """
+        # For each predicate, add its nested propositions to the OKR
+        preds = self.get_predicates()
+        for pred in preds:
+            pw.parse_predicate(pred)
+
+
     def get_sentence(self):
         # Returns the tokenized sentence stored in this instance
         # @return - string, space separated sentence
@@ -90,24 +113,14 @@ class PropSWrapper:
                           for node in sorted(self.dep_tree,
                                              key = lambda node: node.id)[1:]])  # Skip over ROOT node
 
-    def get_predicates(self,
-                       get_implicits,
-                       get_zero_args,
-                       get_conj,
-    ):
+    def get_predicates(self):
         """
         Get this graph's predicate nodes.
-        :param get_zero_args - Boolean controlling whether zero-argument predicates are
-                               returned.
-        :param get_implicites - Boolean controlling whether implicit predicates are
-                                returned.
-        :param get_conj - Boolean controlling whether conjunction predicates are
-                                returned.
         """
         # define filters as lambdas - all should return True if node should be filtered
-        zero_arg_filter = lambda node: (not get_zero_args) and (len(node.neighbors()) == 0)
-        implicit_filter = lambda node: (not get_implicits) and node.is_implicit()
-        conj_filter = lambda node: (not get_conj) and node.isConj()
+        zero_arg_filter = lambda node: (not self.get_zero_args) and (len(node.neighbors()) == 0)
+        implicit_filter = lambda node: (not self.get_implicits) and node.is_implicit()
+        conj_filter = lambda node: (not self.get_conj) and node.isConj()
 
         # Concat all filters
         is_valid_pred = lambda node: node.isPredicate and \
@@ -159,6 +172,7 @@ class PropSWrapper:
             )
         return matching_dep_nodes[0]
 
+
     def get_mwp(self,predicate_node):
         """
         Returns the multiword predicate rooted in the given node.
@@ -204,10 +218,9 @@ class PropSWrapper:
                 for neighbor in neighbors_list]
 
 
-    def get_template(self, predicate_node):
+    def parse_predicate(self, predicate_node):
         """
-        Given a predicate node - returns the predicate and arguments involved
-        in this predicate
+        Given a predicate node, populates the entities and predicates nested under it in the PropS graph.
         :param predicate_node - PropS node, from which to extract the predicate
         """
         assert(predicate_node.isPredicate)
@@ -255,29 +268,23 @@ class PropSWrapper:
         self.predicates[predicate_symbol] = {"Bare predicate": bare_predicate_str,
                                              "Template": template}
 
-        ### TODO:
-        ### 1. Add entities by iterating over dep_entities and getting the entire subtree text
-        ###    (hopefully there's a props native for doing this)
-        ### 2. Known bug - John wanted to take the book from Bob and give it to Mary
+        # Add entities by iterating over dep_entities and getting the entire subtree text
+        for node in dep_entities:
+            ent_symbol = self.get_element_symbol(self.get_node_ind(node),
+                                                 self._gensym_ent)
+            self.entities[ent_symbol] = " ".join([w.word
+                                                  for w in sorted(set(node.original_text),
+                                                                  key = lambda n: n.index)])
 
-    @staticmethod
-    def get_node_original_text(node):
-        """
-        Given a node from the graph, returns a string concatenating all the words in its
-        original string field.
-        :param node - a node in the graph.
-        """
-        return " ".join(" ".join([str(w.word)
-                                  for w in
-                                  sorted(n.original_text,
-                                         key = lambda w: w.index)]))
+        #TODO: Known bug in conjunctions - John wanted to take the book from Bob and give it to Mary
+
     def _gensym_pred(self):
         """
         Generate a unique predicate symbol name.
         (Should be called from get_element_symbol)
         """
         self.pred_counter += 1
-        return "P{}".format(self.pred_counter)
+        return "<P{}>".format(self.pred_counter)
 
     def _gensym_ent(self):
         """
@@ -285,7 +292,7 @@ class PropSWrapper:
         (Should be called from get_element_symbol)
         """
         self.ent_counter += 1
-        return "A{}".format(self.ent_counter)
+        return "<A{}>".format(self.ent_counter)
 
     # Constants
     # Add a few labels to PropS' auxiliaries
@@ -293,30 +300,29 @@ class PropSWrapper:
                   "auxpass", "prep", "cc",
                   "conj"]
 
-def main(pw, sent):
-    """
-    Run a batch of test commands, prints to screen, may return some variables
-    for interactive inspection.
-    @param pw - PropSWrapper instance
-    @param sent - str, a raw sentence on which to run the commands.
-    """
-    pw.parse(sent)
-    preds = pw.get_predicates(get_implicits = False,
-                              get_zero_args = False,
-                              get_conj = False)
-
-    return pw.get_template(preds[0])
-
 if __name__ == "__main__":
     """
-    Simple unit tests
+    Simple unit tests and examples of usage
     """
-    logging.basicConfig(level = logging.DEBUG)
+    logging.basicConfig(level = logging.INFO)
 
     # Parse arguments
     args = docopt(__doc__)
 
-    pw = PropSWrapper()
-    sent = "The Syrian plane landed in Moscow."
-    main(pw, sent)
-    logging.debug(pformat(pw.get_okr()))
+    # Example of usage:
+
+    # 1. Initialize PropSWrapper
+    pw = PropSWrapper(get_implicits = False,
+                      get_zero_args = False,
+                      get_conj = False)
+
+    # 2. Parse sentence
+    sent = "The Syrian plane was forced to land in Moscow."
+    pw.parse(sent)
+
+    # 3. Get OKR Json object
+    okr = pw.get_okr()
+    logging.info(pformat(okr))
+    return okr
+
+
