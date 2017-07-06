@@ -235,7 +235,7 @@ class PropSWrapper:
         bare_predicate = self.get_mwp(predicate_node)
         bare_predicate_str = " ".join([node.word for node in sorted(bare_predicate,
                                                                     key = lambda node: node.id)])
-        bare_predicate_indices = [node.id for node in sorted(bare_predicate,
+        bare_predicate_indices = [node.id - 1 for node in sorted(bare_predicate,
                                                              key = lambda node: node.id)]
         predicate_symbol = self.get_element_symbol(self.get_node_ind(predicate_node),
                                                    self._gensym_pred)
@@ -277,7 +277,8 @@ class PropSWrapper:
                                                                 tuple(bare_predicate_indices)),
                                              "Template": template,
                                              "Head":{
-                                                 "Surface": dep_tree.word,
+                                                 "Surface": (dep_tree.word,
+                                                             dep_tree.id - 1),
                                                  "Lemma": predicate_node.features.get('Lemma', ''),
                                                  "POS": dep_tree.pos,
                                              }
@@ -291,7 +292,8 @@ class PropSWrapper:
                                    key = lambda n: n.index)
             self.entities[ent_symbol] = (" ".join([w.word
                                                    for w in sorted_entity]),
-                                         tuple([w.index for w in sorted_entity]))
+                                         tuple([w.index - 1
+                                                for w in sorted_entity]))
 
         #TODO: Known bug in conjunctions - John wanted to take the book from Bob and give it to Mary
 
