@@ -103,7 +103,7 @@ class PropSWrapper:
         # For each predicate, add its nested propositions to the OKR
         preds = self.get_predicates()
         for pred in preds:
-            pw.parse_predicate(pred)
+            self.parse_predicate(pred)
 
 
     def get_sentence(self):
