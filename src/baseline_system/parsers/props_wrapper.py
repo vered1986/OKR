@@ -235,6 +235,8 @@ class PropSWrapper:
         bare_predicate = self.get_mwp(predicate_node)
         bare_predicate_str = " ".join([node.word for node in sorted(bare_predicate,
                                                                     key = lambda node: node.id)])
+        bare_predicate_indices = [node.id for node in sorted(bare_predicate,
+                                                             key = lambda node: node.id)]
         predicate_symbol = self.get_element_symbol(self.get_node_ind(predicate_node),
                                                    self._gensym_pred)
         # Create template
@@ -271,7 +273,8 @@ class PropSWrapper:
                                        key = lambda (ind, word): ind))) 
 
         # Store in this sentence's OKR
-        self.predicates[predicate_symbol] = {"Bare predicate": bare_predicate_str,
+        self.predicates[predicate_symbol] = {"Bare predicate": (bare_predicate_str,
+                                                                tuple(bare_predicate_indices)),
                                              "Template": template,
                                              "Head":{
                                                  "Surface": dep_tree.word,
@@ -284,9 +287,11 @@ class PropSWrapper:
         for node in dep_entities:
             ent_symbol = self.get_element_symbol(self.get_node_ind(node),
                                                  self._gensym_ent)
-            self.entities[ent_symbol] = " ".join([w.word
-                                                  for w in sorted(set(node.original_text),
-                                                                  key = lambda n: n.index)])
+            sorted_entity = sorted(set(node.original_text),
+                                   key = lambda n: n.index)
+            self.entities[ent_symbol] = (" ".join([w.word
+                                                   for w in sorted_entity]),
+                                         tuple([w.index for w in sorted_entity]))
 
         #TODO: Known bug in conjunctions - John wanted to take the book from Bob and give it to Mary
 
