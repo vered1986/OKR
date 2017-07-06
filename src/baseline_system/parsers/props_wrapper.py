@@ -1,14 +1,17 @@
 """ Usage:
-   props_wrapper
+   props_wrapper --in=INPUT_FILE --out=OUTPUT_FILE
 
 Author: Gabi Stanovsky
 
     Abstraction over the PropS parser.
     If ran with the interactive flag also starts a shell expecting raw sentences.
+    Parses sentences from input file (not tokenized), and writes an output json to the output file.
 """
 
-from docopt import docopt
 import logging
+import json
+
+from docopt import docopt
 from pprint import pprint, pformat
 from collections import defaultdict
 from operator import itemgetter
@@ -250,14 +253,15 @@ class PropSWrapper:
                         if (not node.isPredicate)]
 
         # Concat, sort, and get the words forming the template
+        # Element placeholders appear with curly brackets, for replacement with format
         all_template_elements = predicate_items + \
                                 [(self.get_node_ind(node),
-                                  self.get_element_symbol(self.get_node_ind(node),
-                                                          self._gensym_pred))
+                                  '{{{}}}'.format(self.get_element_symbol(self.get_node_ind(node),
+                                                                          self._gensym_pred)))
                                   for node in dep_preds] + \
                                 [(self.get_node_ind(node),
-                                  self.get_element_symbol(self.get_node_ind(node),
-                                                          self._gensym_ent))
+                                  '{{{}}}'.format(self.get_element_symbol(self.get_node_ind(node),
+                                                                          self._gensym_ent)))
                                   for node in dep_entities]
 
         logging.debug(all_template_elements)
@@ -268,7 +272,13 @@ class PropSWrapper:
 
         # Store in this sentence's OKR
         self.predicates[predicate_symbol] = {"Bare predicate": bare_predicate_str,
-                                             "Template": template}
+                                             "Template": template,
+                                             "Head":{
+                                                 "Surface": dep_tree.word,
+                                                 "Lemma": predicate_node.features.get('Lemma', ''),
+                                                 "POS": dep_tree.pos,
+                                             }
+        }
 
         # Add entities by iterating over dep_entities and getting the entire subtree text
         for node in dep_entities:
@@ -286,7 +296,7 @@ class PropSWrapper:
         (Should be called from get_element_symbol)
         """
         self.pred_counter += 1
-        return "<P{}>".format(self.pred_counter)
+        return "P{}".format(self.pred_counter)
 
     def _gensym_ent(self):
         """
@@ -294,7 +304,7 @@ class PropSWrapper:
         (Should be called from get_element_symbol)
         """
         self.ent_counter += 1
-        return "<A{}>".format(self.ent_counter)
+        return "A{}".format(self.ent_counter)
 
     # Constants
     # Add a few labels to PropS' auxiliaries
@@ -310,6 +320,8 @@ if __name__ == "__main__":
 
     # Parse arguments
     args = docopt(__doc__)
+    input_fn = args["--in"]
+    output_fn = args["--out"]
 
     # Example of usage:
 
@@ -318,12 +330,22 @@ if __name__ == "__main__":
                       get_zero_args = False,
                       get_conj = False)
 
-    # 2. Parse sentence
-    sent = "The Syrian plane was forced to land in Moscow."
-    pw.parse(sent)
+    okrs = []
+    for line in open(input_fn):
+        sent = line.strip()
 
-    # 3. Get OKR Json object
-    okr = pw.get_okr()
-    logging.info(pformat(okr))
+        if not sent or sent.startswith('#'):
+            # Ignore commented lines
+            continue
 
+        # 2. Parse sentence
+        pw.parse(sent)
 
+        # 3. Get OKR Json object
+        okr = pw.get_okr()
+        okrs.append(okr)
+        logging.info(pformat(okr))
+
+    # Dump json
+    with open(output_fn, 'w') as fout:
+        json.dump(okrs, fout)
