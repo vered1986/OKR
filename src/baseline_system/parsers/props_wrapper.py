@@ -107,8 +107,10 @@ class PropSWrapper:
 
 
     def get_sentence(self):
-        # Returns the tokenized sentence stored in this instance
-        # @return - string, space separated sentence
+        """
+        Returns the tokenized sentence stored in this instance
+        @return - string, space separated sentence
+        """
         return " ".join([node.word
                           for node in sorted(self.dep_tree,
                                              key = lambda node: node.id)[1:]])  # Skip over ROOT node
