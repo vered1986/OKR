@@ -281,7 +281,13 @@ class PropSWrapper:
                                                              dep_tree.id - 1),
                                                  "Lemma": predicate_node.features.get('Lemma', ''),
                                                  "POS": dep_tree.pos,
-                                             }
+                                             },
+                                             "Arguments":[self.get_element_symbol(self.get_node_ind(node),
+                                                                                  self._gensym_ent)
+                                                          for node in dep_entities] + \
+                                             [self.get_element_symbol(self.get_node_ind(node),
+                                                                      self._gensym_pred)
+                                              for node in dep_preds]
         }
 
         # Add entities by iterating over dep_entities and getting the entire subtree text
