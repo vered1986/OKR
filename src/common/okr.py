@@ -35,6 +35,8 @@ class OKR:
             for m_id, prop_mention in prop.mentions.iteritems():
                 set_template(prop_mention, self.entities, self.propositions)
 
+            if not prop.entailment_graph:
+                continue
             prop.entailment_graph.mentions_graph = from_term_id_to_mention_id(prop.entailment_graph.graph,
                                                                               prop.mentions, MentionType.Proposition)
             prop.entailment_graph.contradictions_mention_graph = from_term_id_to_mention_id(
