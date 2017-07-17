@@ -1,6 +1,9 @@
-"""
-draft for automatic pipeline for v2
+"""Usage:
+   parse_okr_v2 --in=INPUT_FILE --out=OUTPUT_FILE
 
+Author: Ayal Klein
+
+baseline for automatic pipeline for okr-v2.
 run it from baseline_automatic_pipeline_system directory.
 
 steps:
@@ -15,7 +18,8 @@ steps:
 
 """
 
-import sys
+import sys, logging
+from docopt import docopt
 sys.path.append("../common")
 sys.path.append("../baseline_system")
 
@@ -110,8 +114,17 @@ def cluster_propositions(all_proposition_mentions):
     clusters = cluster_mentions(mentions_for_clustering, predicate_coref.score)
     return clusters
 
-
-#step 6
+"""
+step 6
+create okr_info dict (dict with all graph info) based on entity & proposition clustering
+    - when generating the EntityMention & PropositionMention objects, maintain a global mapping 
+    between global_mention_id to mention-object. 
+    - at ArgumentMentions generation, use global-mention-IDs as parent-mention-id. don't assign parent-id.
+        The Reason- the Proposition IDs are only created in this first traverse.
+    - as a second step, for each PropositionMention: 
+        * traverse all ArgumentMentions, and replace parent-mention-id and parent-id through the global mapping.
+        * modify the template - replace original single-sentence template by changing the single-sentence symbols to their cluster (Entity\Proposition) ID.
+"""
 def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions):
     from constants import MentionType
     okr_info = {}   # initialize all keyword arguments here for okr object initialization
@@ -228,12 +241,32 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
 
 
 # main
+if __name__ == "__main__":
+    # general settings
+    logging.basicConfig(level=logging.INFO)
 
-sentences = get_raw_sentences_from_file(tweets_file)
-parsed_sentences = parse_single_sentences(sentences)
-all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
-entities = cluster_entities(all_entity_mentions)
-propositions = cluster_propositions(all_proposition_mentions)
-okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
-okr_v1 = okr.OKR(**okr_info)
+    # Parse arguments
+    args = docopt(__doc__)
+    input_fn = args["--in"]
+    output_fn = args["--out"]
+
+    #automatic pipeline
+    sentences = get_raw_sentences_from_file(input_fn)
+    parsed_sentences = parse_single_sentences(sentences)
+    all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
+    entities = cluster_entities(all_entity_mentions)
+    propositions = cluster_propositions(all_proposition_mentions)
+    okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
+    okr_v1 = okr.OKR(**okr_info)
+
+    # log eventual results
+    ## did we cluster any mentions?
+    logging.debug("entities with more than one mention:")
+    logging.debug([ entity.terms for entity in okr_v1.entities.values() if len(entity.mentions)>1 ])
+    logging.debug("propositions with more than one mention:")
+    logging.debug([prop.terms for prop in okr_v1.propositions.values() if len(prop.mentions) > 1])
+
+    # export output
+    import pickle, json
+    pickle.dump(okr_v1, open(output_fn, "w"))
 
