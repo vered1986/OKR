@@ -278,7 +278,7 @@ class PropSWrapper:
                                              "Template": template,
                                              "Head":{
                                                  "Surface": (dep_tree.word,
-                                                             dep_tree.id - 1),
+                                                             [dep_tree.id - 1]),
                                                  "Lemma": predicate_node.features.get('Lemma', ''),
                                                  "POS": dep_tree.pos,
                                              },
