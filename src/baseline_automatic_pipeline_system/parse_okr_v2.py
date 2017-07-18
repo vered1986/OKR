@@ -40,15 +40,16 @@ def get_raw_sentences_from_file(input_fn):
 
 # step 2
 def parse_single_sentences(raw_sentences):
-    """ Return a list of parsed single-sentence representation. uses props as parser."""
+    """ Return a dict of { sentence_id : parsed single-sentence representation } . uses props as parser.
+    @:arg raw_sentences: a { sentence_id : raw_sentence } dict. 
+    """
     pw = PropSWrapper(get_implicits=False,
                       get_zero_args=False,
                       get_conj=False)
     parsed_sentences = {}
     for sent_id, sent in raw_sentences.items():
         pw.parse(sent)
-        parsed_sent = pw.get_okr()
-        parsed_sentences[sent_id] = parsed_sent
+        parsed_sentences[sent_id] = pw.get_okr()
     return parsed_sentences
 
 #step 3
@@ -230,6 +231,19 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
 
     return okr_info
 
+# all together (after parsing input files)
+def auto_pipeline_okr_v1(sentences):
+    """ Get okr_v1 object from raw-sentences.
+    :param sentences: a dict of { sentence_id : raw_sentence }
+    :return: OKR (v1) object
+    """
+    parsed_sentences = parse_single_sentences(sentences)
+    all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
+    entities = cluster_entities(all_entity_mentions)
+    propositions = cluster_propositions(all_proposition_mentions)
+    okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
+    okr_v1 = okr.OKR(**okr_info)
+    return okr_v1
 
 # main
 if __name__ == "__main__":
@@ -243,12 +257,7 @@ if __name__ == "__main__":
 
     #automatic pipeline
     sentences = get_raw_sentences_from_file(input_fn)
-    parsed_sentences = parse_single_sentences(sentences)
-    all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
-    entities = cluster_entities(all_entity_mentions)
-    propositions = cluster_propositions(all_proposition_mentions)
-    okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
-    okr_v1 = okr.OKR(**okr_info)
+    okr_v1 = auto_pipeline_okr_v1(sentences)
 
     # log eventual results
     ## did we cluster any mentions?
