@@ -7,3 +7,4 @@ venv/*
 *.log
 *~
 resources/resource_dictionary.db
+src/baseline_automatic_pipeline_system/tmp
