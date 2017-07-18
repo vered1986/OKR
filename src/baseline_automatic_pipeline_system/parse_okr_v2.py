@@ -27,25 +27,20 @@ from parsers.props_wrapper import PropSWrapper
 import okr
 
 # TODO handle input (tweets raw data)
-# instead of step 1 - meantime suppose its just a simple text file of line-separated sentences, given in tweets_file
-tweets_file = "../../examples/raw_sentences"
+# step 1 - meantime suppose its just a simple text file of line-separated sentences
 def get_raw_sentences_from_file(input_fn):
-    """ Get list of raw sentence out of file. ignore comments. """
-    raw_sentences = []
-    for line in open(input_fn):
-        sent = line.strip()
-        if not sent or sent.startswith('#'):
-            # Ignore commented lines
-            continue
-        raw_sentences.append(sent)
+    """ Get dict of { sentence_id : raw_sentence } out of file. ignore comments. """
+    raw_sentences = [ line.strip()
+                      for line in open(input_fn, "r")
+                      if line.strip() and not line.startswith('#') ]
 
     # make it a dict {id : sentence}, id starting from 1
-    sentences_dict = {"S"+str(id) : sentence for id, sentence in enumerate(raw_sentences, start=1)}
+    sentences_dict = {"S"+str(sent_id) : sentence for sent_id, sentence in enumerate(raw_sentences, start=1)}
     return sentences_dict
 
 # step 2
 def parse_single_sentences(raw_sentences):
-    """ return a list of parsed single-sentence representation. uses props as parser."""
+    """ Return a list of parsed single-sentence representation. uses props as parser."""
     pw = PropSWrapper(get_implicits=False,
                       get_zero_args=False,
                       get_conj=False)
@@ -58,20 +53,14 @@ def parse_single_sentences(raw_sentences):
 
 #step 3
 def get_mention_lists(parsed_sentences):
-    """ return combined lists of EntityMentions and of PropositionMentions. """
+    """ Return combined lists of EntityMentions and of PropositionMentions (of all sentences). """
 
-    all_entity_mentions = {}        # { global-unique-id : entity-mention-info-dict }
-    all_proposition_mentions = {}   # { global-unique-id : proposition-mention-info-dict }
+    all_entity_mentions = {}        # would be: { global-unique-id : entity-mention-info-dict }
+    all_proposition_mentions = {}   # would be: { global-unique-id : proposition-mention-info-dict }
                                     # global-unique-id is composed from sent_id + "_" + key(=id-symbol at props_wrapper)
 
     for sent_id, parsed_sent in parsed_sentences.items():
         # *** entities ***
-        # mentions_keys_terms_indices = [(key, unicode(terms), indices, sent_id) for key, (terms, indices) in parsed_sent["Entities"].items()]
-        # # each mention is a (key, id, terms) triplet
-        # sentence_entity_mentions = [(mention_info[0], id)+ mention_info[1:] for id, mention_info in zip(mentions_ids, mentions_keys_terms_indices)]
-        # # add all entity-mentions of sentence to global list
-        # all_entity_mentions.extend(sentence_entity_mentions)
-
         sentence_entity_mentions = { sent_id + "_" + key :
                                          { "terms":          unicode(terms),
                                            "indices":       indices,
@@ -90,6 +79,7 @@ def get_mention_lists(parsed_sentences):
 
 # step 4
 def cluster_entities(all_entity_mentions):
+    """ Cluster entity-mentions to entities, Using baseline coreference functions.  """
     import eval_entity_coref as entity_coref
     from clustering_common import cluster_mentions
     """
@@ -103,6 +93,7 @@ def cluster_entities(all_entity_mentions):
 
 #step 5
 def cluster_propositions(all_proposition_mentions):
+    """ Cluster proposition-mentions to propositions, Using baseline coreference functions.  """
     import eval_predicate_coref as predicate_coref
     from clustering_common import cluster_mentions
     """
@@ -114,9 +105,34 @@ def cluster_propositions(all_proposition_mentions):
     clusters = cluster_mentions(mentions_for_clustering, predicate_coref.score)
     return clusters
 
-"""
-step 6
-create okr_info dict (dict with all graph info) based on entity & proposition clustering
+# helper function for step 6
+def generate_argument_mentions(prop_mention):
+    """ Generate argument_mentions dict { arg_id : ArgumentMention} for a PropositionMention. """
+    from constants import MentionType
+    # if no args - return empty dict
+    if not prop_mention["Arguments"]:
+        return {}
+
+    sentence_id = prop_mention["sentence_id"]
+
+    # generate ArgumentMentions
+    prefix_to_arg_type = {"P": MentionType.Proposition, "A": MentionType.Entity}
+    argument_mentions = {}
+    for arg_id, arg_symbol in enumerate(prop_mention["Arguments"], start=1):
+        mention_type = prefix_to_arg_type[arg_symbol[0]]
+        parent_mention_id = str(sentence_id) + "_" + arg_symbol
+        # note that can't assign parent_id, because id of proposition is not yet determined. do that afterwards.
+        argument_mentions[arg_id] = okr.ArgumentMention(id=arg_id,
+                                                        desc="",
+                                                        mention_type=mention_type,
+                                                        # TODO these will be modified afterward
+                                                        parent_id=None,
+                                                        parent_mention_id=parent_mention_id)
+    return argument_mentions
+
+#step 6
+def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions):
+    """ Create okr_info dict (dict with all graph info) based on entity & proposition clustering.
     - when generating the EntityMention & PropositionMention objects, maintain a global mapping 
     between global_mention_id to mention-object. 
     - at ArgumentMentions generation, use global-mention-IDs as parent-mention-id. don't assign parent-id.
@@ -124,9 +140,7 @@ create okr_info dict (dict with all graph info) based on entity & proposition cl
     - as a second step, for each PropositionMention: 
         * traverse all ArgumentMentions, and replace parent-mention-id and parent-id through the global mapping.
         * modify the template - replace original single-sentence template by changing the single-sentence symbols to their cluster (Entity\Proposition) ID.
-"""
-def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions):
-    from constants import MentionType
+    """
     okr_info = {}   # initialize all keyword arguments here for okr object initialization
     okr_info["name"] = "default_name"   #TODO how (or whether) should we decide this?
     okr_info["sentences"] = sentences
@@ -173,36 +187,13 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
             # retrieve original prop-mention information by the unique id
             mention = all_proposition_mentions[mention_global_id]
 
-            def generate_argument_mentions():
-                # if no args - return empty dict
-                if not mention["Arguments"]:
-                    return {}
-
-                sentence_id = mention["sentence_id"]
-
-                # generate ArgumentMentions
-                prefix_to_arg_type={"P":MentionType.Proposition, "A":MentionType.Entity}
-                argument_mentions = {}
-                for arg_id, arg_symbol in enumerate(mention["Arguments"], start=1):
-                    mention_type = prefix_to_arg_type[arg_symbol[0]]
-                    parent_mention_id = str(sentence_id) + "_" + arg_symbol
-                    # note that can't assign parent_id, because id of proposition is not yet determined. do that afterwards.
-                    argument_mentions[arg_id] = okr.ArgumentMention(id=arg_id,
-                                                                    desc="",
-                                                                    mention_type=mention_type,
-                                                                    # TODO these will be modified afterward
-                                                                    parent_id=None,
-                                                                    parent_mention_id=parent_mention_id)
-                return argument_mentions
-
-            argument_mentions = generate_argument_mentions()
             # generate PropositionMention object
             mention_object = okr.PropositionMention(id=new_mention_id,
                                                     sentence_id=mention["sentence_id"],
                                                     indices=mention["Bare predicate"][1],
                                                     terms=mention["Bare predicate"][0],
                                                     parent=prop_id,
-                                                    argument_mentions=argument_mentions,
+                                                    argument_mentions=generate_argument_mentions(mention),
                                                     is_explicit=True)
 
             # TODO this will also be modified afterwards
