@@ -35,10 +35,12 @@ class OKR:
             for m_id, prop_mention in prop.mentions.iteritems():
                 set_template(prop_mention, self.entities, self.propositions)
 
-            prop.entailment_graph.mentions_graph = from_term_id_to_mention_id(prop.entailment_graph.graph,
-                                                                              prop.mentions, MentionType.Proposition)
-            prop.entailment_graph.contradictions_mention_graph = from_term_id_to_mention_id(
-                prop.entailment_graph.contradictions_graph, prop.mentions, MentionType.Proposition)
+            # create mention entailment graph (if entailment_graph given)
+            if prop.entailment_graph:
+                prop.entailment_graph.mentions_graph = from_term_id_to_mention_id(prop.entailment_graph.graph,
+                                                                                  prop.mentions, MentionType.Proposition)
+                prop.entailment_graph.contradictions_mention_graph = from_term_id_to_mention_id(
+                    prop.entailment_graph.contradictions_graph, prop.mentions, MentionType.Proposition)
 
         # Create dictionaries to get mentions by their string ID
         self.prop_mentions_by_key = {str(mention): mention
