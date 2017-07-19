@@ -1,5 +1,5 @@
 """Usage:
-   parse_okr_v2 --in=INPUT_FILE --out=OUTPUT_FILE
+   parse_okr_info --in=INPUT_FILE --out=OUTPUT_FILE
 
 Author: Ayal Klein
 
@@ -13,8 +13,6 @@ steps:
 4. use baseline coref system to cluster EntityMentions to Entities
 5. use baseline coref system to cluster PropositionMentions to Propositions
 6. create okr object based on the pipeline results
-7. evaluate automatic-pipline results
-8. generate output json
 
 """
 
