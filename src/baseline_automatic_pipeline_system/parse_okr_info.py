@@ -197,7 +197,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
                                                     argument_mentions=generate_argument_mentions(mention),
                                                     is_explicit=True)
 
-            # TODO this will also be modified afterwards
+            # this will also be modified afterwards
             mention_object.template = mention["Template"]
 
             # add this PropositionMention object to Proposition.mentions dict
@@ -232,18 +232,19 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
     return okr_info
 
 # all together (after parsing input files)
-def auto_pipeline_okr_v1(sentences):
-    """ Get okr_v1 object from raw-sentences.
+def auto_pipeline_okr_info(sentences):
+    """ Get okr_info dictionary from raw-sentences.
     :param sentences: a dict of { sentence_id : raw_sentence }
-    :return: OKR (v1) object
+    :return: okr_info, dictionary for initializing okr graphs.
+    okr_v1 can be initialized using:
+        okr.OKR(**okr_info)
     """
     parsed_sentences = parse_single_sentences(sentences)
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
     entities = cluster_entities(all_entity_mentions)
     propositions = cluster_propositions(all_proposition_mentions)
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
-    okr_v1 = okr.OKR(**okr_info)
-    return okr_v1
+    return okr_info
 
 # main
 if __name__ == "__main__":
@@ -257,7 +258,8 @@ if __name__ == "__main__":
 
     #automatic pipeline
     sentences = get_raw_sentences_from_file(input_fn)
-    okr_v1 = auto_pipeline_okr_v1(sentences)
+    okr_info = auto_pipeline_okr_info(sentences)
+    okr_v1 = okr.OKR(**okr_info)
 
     # log eventual results
     ## did we cluster any mentions?
