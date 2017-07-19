@@ -15,11 +15,11 @@
 				"properties": {
 					"id": {
 						"description": "Entity ID (some unique number)",
-						"type": "string",
+						"type": "string"
 					},
 					"alias": {
 						"description": "Alias of the entity", 
-						"type": "string",					
+						"type": "string"
 					},
 					"mentions": {
 						"description": "list of entity mentions from original tweets", 
@@ -54,11 +54,11 @@
 				"properties": {
 					"id": {
 						"description": "Proposition ID (some unique number)",
-						"type": "string",
+						"type": "string"
 					},
 					"alias": {
 						"description": "Alias of the proposition, such as first mention", 
-						"type": "string",					
+						"type": "string"
 					},
 					"predicates": {
 						"type": "array",
@@ -77,13 +77,13 @@
 										"properties": {
 											"template": {
 												"description": "format of the proposition, with placeholders for arguments",
-												"type": "string",
+												"type": "string"
 											},
 											"sources": {
 												"description": "IDs of source tweets",
 												"type": "array",
 												"items": {
-													"type": "string",
+													"type": "string"
 												}
 											}
 										}
@@ -122,7 +122,7 @@
 												"description": "IDs of source tweets that this concept serves as the argument",
 												"type": "array",
 												"items": {
-													"type": "string",
+													"type": "string"
 												}
 											}
 										}
