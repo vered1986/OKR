@@ -60,6 +60,10 @@
 						"description": "Alias of the proposition, such as first mention", 
 						"type": "string"
 					},
+					"attribution": {
+						"description": "ID of entity which attrbiuted this proposition, null if this is top-level proposition",
+						"type": "string"
+					},
 					"predicates": {
 						"type": "array",
 						"items": {
@@ -97,7 +101,7 @@
 						"items": {
 							"title": "Argument",
 							"type": "object",
-							"required": ["id", "mentions"],
+							"required": ["id", "values"],
 							"properties": {
 								"id": {
 									"description": "unique ID for an argument slot of the proposition",

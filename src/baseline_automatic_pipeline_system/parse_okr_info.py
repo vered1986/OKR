@@ -4,7 +4,7 @@
 Author: Ayal Klein
 
 baseline for automatic pipeline for okr-v2.
-run it from baseline_automatic_pipeline_system directory.
+run it from base OKR directory.
 
 steps:
 1. get list of sentences (tweets).
@@ -16,10 +16,11 @@ steps:
 
 """
 
-import sys, logging
+import sys, logging, copy, os
 from docopt import docopt
-sys.path.append("../common")
-sys.path.append("../baseline_system")
+# add all src sub-directories to path
+for pack in os.listdir("src"):
+    sys.path.append(os.path.join("src", pack))
 
 from parsers.props_wrapper import PropSWrapper
 import okr
@@ -68,7 +69,7 @@ def get_mention_lists(parsed_sentences):
         all_entity_mentions.update(sentence_entity_mentions)
 
         # *** propositions ***
-        sentence_proposition_mentions = { str(sent_id) + "_" + key :
+        sentence_proposition_mentions = { sent_id + "_" + key :
                                               dict( {"sentence_id" : sent_id},
                                                     **prop_ment_info )
                                           for key, prop_ment_info in parsed_sent["Predicates"].items() }
@@ -208,7 +209,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
         okr_info["propositions"][prop_id] = okr.Proposition(id=prop_id,
                                                             name=all_prop_terms[0],
                                                             mentions=prop_mentions,
-                                                            attributor=None,  # TODO neccessary?
+                                                            attributor=None,  # TODO extract
                                                             terms=all_prop_terms,
                                                             entailment_graph=None)
 
@@ -218,13 +219,12 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
             # modify arguments
             for argument_mention_id, argument_mention in prop_mention.argument_mentions.items():
                 mention_global_id = argument_mention.parent_mention_id
-                sent_id, symbol = mention_global_id.split("_")
                 # modify parent_mention_id
                 arg_orig_mention_object = global_mention_id_to_mention_object[mention_global_id]
                 argument_mention.parent_mention_id = arg_orig_mention_object.id
                 argument_mention.parent_id = arg_orig_mention_object.parent
-
                 # replace symbol of argument in template with id of its parent (Entity/Proposition)
+                sent_id, symbol = mention_global_id.split("_")
                 prop_mention.template = prop_mention.template.replace("{"+symbol+"}", "{"+argument_mention.parent_id+"}")
 
     return okr_info
@@ -256,8 +256,20 @@ if __name__ == "__main__":
 
     #automatic pipeline
     sentences = get_raw_sentences_from_file(input_fn)
-    okr_info = auto_pipeline_okr_info(sentences)
-    okr_v1 = okr.OKR(**okr_info)
+
+    """
+    The following section is equivalent to:
+        okr_info = auto_pipeline_okr_info(sentences)
+    We are using the full pipeline explicitly, for debug purposes.
+    """
+    parsed_sentences = parse_single_sentences(sentences)
+    all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
+    entities = cluster_entities(all_entity_mentions)
+    propositions = cluster_propositions(all_proposition_mentions)
+    okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
+
+    # using copy because OKR CTor changes the template of PropositionMentions of propositions attribute
+    okr_v1 = okr.OKR(**copy.deepcopy(okr_info))
 
     # log eventual results
     ## did we cluster any mentions?
