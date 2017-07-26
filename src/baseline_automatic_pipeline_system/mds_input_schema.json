@@ -62,39 +62,37 @@
 					},
 					"attribution": {
 						"description": "ID of entity which attrbiuted this proposition, null if this is top-level proposition",
-						"type": "string"
+						"type": ["string", "null"]
 					},
 					"predicates": {
-						"type": "array",
-						"items": {
-							"title": "Predicate",
-							"type": "object",
-							"required": ["templates"],
-							"properties": {
-								"templates": {
-									"type": "array",
-									"items": {
-										"title": "Prososition Template",
-										"description": "unique template of the proposition",
-										"type": "object",
-										"required": ["template", "sources"],
-										"properties": {
-											"template": {
-												"description": "format of the proposition, with placeholders for arguments",
+						"title": "Predicates information",
+						"type": "object",
+						"required": ["templates"],
+						"properties": {
+							"templates": {
+								"type": "array",
+								"items": {
+									"title": "Proposition Template",
+									"description": "unique template of the proposition, with placeholders for arguments",
+									"type": "object",
+									"required": ["template", "sources"],
+									"properties": {
+										"template": {
+											"description": "format of the proposition, with placeholders for arguments",
+											"type": "string"
+										},
+										"sources": {
+											"description": "IDs of source tweets",
+											"type": "array",
+											"items": {
 												"type": "string"
-											},
-											"sources": {
-												"description": "IDs of source tweets",
-												"type": "array",
-												"items": {
-													"type": "string"
-												}
 											}
 										}
 									}
 								}
 							}
 						}
+
 					},
 					"arguments": {
 						"type": "array",
