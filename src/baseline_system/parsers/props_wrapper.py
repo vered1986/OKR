@@ -170,11 +170,11 @@ class PropSWrapper:
         matching_dep_nodes = [node
                               for node in self.dep_tree
                               if node.id in [w.index for w in predicate_node.text]]
-        assert len(matching_dep_nodes) == 1,\
-            "Problems matching {}; nodes matched were:{}; dep tree: {}".format(predicate_node.text[0].index,
-                                                                               matching_dep_nodes,
-                                                                               self.dep_tree
-            )
+        # assert len(matching_dep_nodes) == 1,\
+        #     "Problems matching {}; nodes matched were:{}; dep tree: {}".format(predicate_node.text[0].index,
+        #                                                                        matching_dep_nodes,
+        #                                                                        self.dep_tree
+        #     )
         return matching_dep_nodes[0]
 
 
