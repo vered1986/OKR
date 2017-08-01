@@ -25,7 +25,11 @@ for pack in os.listdir("src"):
 from parsers.props_wrapper import PropSWrapper
 import okr
 
-# TODO handle input (tweets raw data)
+props_wrapper = PropSWrapper(get_implicits=False,
+                  get_zero_args=False,
+                  get_conj=False)
+
+
 # step 1 - meantime suppose its just a simple text file of line-separated sentences
 def get_raw_sentences_from_file(input_fn):
     """ Get dict of { sentence_id : raw_sentence } out of file. ignore comments. """
@@ -42,13 +46,13 @@ def parse_single_sentences(raw_sentences):
     """ Return a dict of { sentence_id : parsed single-sentence representation } . uses props as parser.
     @:arg raw_sentences: a { sentence_id : raw_sentence } dict. 
     """
-    pw = PropSWrapper(get_implicits=False,
-                      get_zero_args=False,
-                      get_conj=False)
     parsed_sentences = {}
     for sent_id, sent in raw_sentences.items():
-        pw.parse(sent)
-        parsed_sentences[sent_id] = pw.get_okr()
+        try:
+            props_wrapper.parse(sent)
+            parsed_sentences[sent_id] = props_wrapper.get_okr()
+        except:
+            logging.error("failed to parse sentence: " + sent)
     return parsed_sentences
 
 #step 3
@@ -125,7 +129,7 @@ def generate_argument_mentions(prop_mention):
         argument_mentions[arg_id] = okr.ArgumentMention(id=arg_id,
                                                         desc="",
                                                         mention_type=mention_type,
-                                                        # TODO these will be modified afterward
+                                                        # these will be modified afterward
                                                         parent_id=None,
                                                         parent_mention_id=parent_mention_id)
     return argument_mentions
@@ -264,8 +268,10 @@ if __name__ == "__main__":
     """
     parsed_sentences = parse_single_sentences(sentences)
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
+    # coreference
     entities = cluster_entities(all_entity_mentions)
     propositions = cluster_propositions(all_proposition_mentions)
+    # consolidating info
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
 
     # using copy because OKR CTor changes the template of PropositionMentions of propositions attribute
