@@ -104,8 +104,8 @@ class PropSWrapper:
         Populate the entities and predicates list of this sentence.
         """
         # For each predicate, add its nested propositions to the OKR
-        preds = self.get_predicates()
-        for pred in preds:
+        self.predicate_nodes = self.get_predicates()
+        for pred in self.predicate_nodes:
             self.parse_predicate(pred)
 
 
@@ -240,19 +240,19 @@ class PropSWrapper:
         predicate_symbol = self.get_element_symbol(self.get_node_ind(predicate_node),
                                                    self._gensym_pred)
         # Create template
-        ## Collect items participating it from predicates and arguments
+        ## Collect items participating in it from predicates and arguments
         predicate_items = [(node.id, node.word)
                            for node in bare_predicate]
 
         ## Get arguments which are predicates on their own
         dep_preds = [node
                      for node in self.get_props_neighbors(predicate_node)
-                     if node.isPredicate]
+                     if node in self.predicate_nodes]
 
         ## Get entity arguments
         dep_entities = [node
                         for node in self.get_props_neighbors(predicate_node)
-                        if (not node.isPredicate)]
+                        if (node not in self.predicate_nodes)]
 
         # Concat, sort, and get the words forming the template
         # Element placeholders appear with curly brackets, for replacement with format
