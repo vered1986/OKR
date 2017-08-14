@@ -227,5 +227,7 @@ if __name__ == "__main__":
     okr_info["tweets"] = tweets     # tweets are aligned with mds requirements
     okr_json = prepare_okr_info_to_export(class_object_to_json_convertable(okr_info))
 
+    # export okr json to file and log
+    import json
+    json.dump(okr_json, open(output_fn, "w"))
     logging.info(okr_json)
-    print okr_json
