@@ -101,11 +101,28 @@ def argument_alignment(prop_mentions):
                      for arg_mention in prop_mention['argument_mentions'].values() ] )
 
     concept_to_slot_index = { concept : index for index, concept in enumerate(concepts) }
+    number_of_slots = len(concept_to_slot_index)
     grouping = defaultdict(list)
     for prop_mention_id, prop_mention in prop_mentions.items():
+        # save the concepts encountered in this prop-mention (to find duplications)
+        encountered_concepts = []
         for arg_mention_id, arg_mention in prop_mention['argument_mentions'].items():
-            slot_index = concept_to_slot_index[arg_mention["parent_id"]]
-            grouping[slot_index].append( (prop_mention_id, arg_mention_id) )
+            referred_concept = arg_mention["parent_id"]
+            """
+            Special treatment for cases where a template is containing two arguments referring to the same concept.
+            This case, both arg-mentions will be aligned to same argument-slot. This is Problematic (and forbidden),
+            since by definition, different argument-slots refer to different semantic roles, so an argument-slot cannot
+            occur twice in a template.
+            """
+            if referred_concept in encountered_concepts:
+                # duplication - special (new) slot necessary for arg
+                grouping[number_of_slots].append( (prop_mention_id, arg_mention_id) )
+                number_of_slots += 1    # increment number_of_slots to index a new slot
+            else:
+                # no duplications - append this arg-mention to the slot corresponding to referred concept
+                encountered_concepts.append(referred_concept)
+                slot_index = concept_to_slot_index[referred_concept]
+                grouping[slot_index].append( (prop_mention_id, arg_mention_id) )
 
     return grouping.values()
 
