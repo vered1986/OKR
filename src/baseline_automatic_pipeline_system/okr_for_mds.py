@@ -162,7 +162,7 @@ def prepare_proposition_predicates_and_arguments(mentions):
     predicates_att = {"templates": templates_att}
 
     # prepare "arguments" attribute for schema format
-    slots = ids_to_slot.values()
+    slots = set(ids_to_slot.values())
     arguments_att = []
     for slot in slots:
         argument_json_object = {}
@@ -221,9 +221,14 @@ if __name__ == "__main__":
     # read tweets from input files
     tweets = get_tweets_from_files(tweets_fn, metadata_fn)
     tweets_strings = {tweet_id : tweet["string"] for tweet_id, tweet in tweets.items() }
-    # retrieve okr info
-    from parse_okr_info import auto_pipeline_okr_info
-    okr_info = auto_pipeline_okr_info(tweets_strings)
+    # retrieve okr info - explicitly call all pipeline stages, for debugging
+    import parse_okr_info as prs
+    parsed_sentences = prs.parse_single_sentences(tweets_strings)
+    all_entity_mentions, all_proposition_mentions = prs.get_mention_lists(parsed_sentences)
+    entities = prs.cluster_entities(all_entity_mentions)
+    propositions = prs.cluster_propositions(all_proposition_mentions)
+    okr_info = prs.generate_okr_info(tweets_strings, all_entity_mentions, all_proposition_mentions, entities, propositions)
+
     okr_info["tweets"] = tweets     # tweets are aligned with mds requirements
     okr_json = prepare_okr_info_to_export(class_object_to_json_convertable(okr_info))
 
