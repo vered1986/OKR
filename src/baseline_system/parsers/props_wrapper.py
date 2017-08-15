@@ -170,15 +170,23 @@ class PropSWrapper:
         matching_dep_nodes = [node
                               for node in self.dep_tree
                               if node.id in [w.index for w in predicate_node.text]]
-        assert len(matching_dep_nodes) == 1,\
-            "Problems matching {}; nodes matched were:{}; dep tree: {}".format(predicate_node.text[0].index,
-                                                                               matching_dep_nodes,
-                                                                               self.dep_tree
-            )
-        return matching_dep_nodes[0]
+        logging.debug("matching predicate node: {}".format(predicate_node))
+
+        # Return the top most node in the dependency tree
+        return min(matching_dep_nodes,
+                   key = lambda dep_node: self.get_dep_height(dep_node))
 
 
-    def get_mwp(self,predicate_node):
+    def get_dep_height(self, dep_node):
+        """
+        Returns the height of a given dependency node
+        I.e., the number of nodes between it and the ROOT.
+        """
+        return (1 + self.get_dep_height(dep_node.parent)) \
+            if (dep_node.parent is not None) \
+               else 0
+
+    def get_mwp(self, predicate_node):
         """
         Returns the multiword predicate rooted in the given node.
         In form of a list of dep nodes, to record the word index and the
@@ -189,6 +197,7 @@ class PropSWrapper:
         # with one of PropS' ignore labels + preposition label
 
         assert(predicate_node.isPredicate)
+
         # Get the corresponding dep tree node
         dep_node = self.get_dep_node(predicate_node)
 
