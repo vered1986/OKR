@@ -104,8 +104,8 @@ class PropSWrapper:
         Populate the entities and predicates list of this sentence.
         """
         # For each predicate, add its nested propositions to the OKR
-        preds = self.get_predicates()
-        for pred in preds:
+        self.predicate_nodes = self.get_predicates()
+        for pred in self.predicate_nodes:
             self.parse_predicate(pred)
 
 
@@ -170,15 +170,23 @@ class PropSWrapper:
         matching_dep_nodes = [node
                               for node in self.dep_tree
                               if node.id in [w.index for w in predicate_node.text]]
-        # assert len(matching_dep_nodes) == 1,\
-        #     "Problems matching {}; nodes matched were:{}; dep tree: {}".format(predicate_node.text[0].index,
-        #                                                                        matching_dep_nodes,
-        #                                                                        self.dep_tree
-        #     )
-        return matching_dep_nodes[0]
+        logging.debug("matching predicate node: {}".format(predicate_node))
+
+        # Return the top most node in the dependency tree
+        return min(matching_dep_nodes,
+                   key = lambda dep_node: self.get_dep_height(dep_node))
 
 
-    def get_mwp(self,predicate_node):
+    def get_dep_height(self, dep_node):
+        """
+        Returns the height of a given dependency node
+        I.e., the number of nodes between it and the ROOT.
+        """
+        return (1 + self.get_dep_height(dep_node.parent)) \
+            if (dep_node.parent is not None) \
+               else 0
+
+    def get_mwp(self, predicate_node):
         """
         Returns the multiword predicate rooted in the given node.
         In form of a list of dep nodes, to record the word index and the
@@ -189,6 +197,7 @@ class PropSWrapper:
         # with one of PropS' ignore labels + preposition label
 
         assert(predicate_node.isPredicate)
+
         # Get the corresponding dep tree node
         dep_node = self.get_dep_node(predicate_node)
 
@@ -240,19 +249,19 @@ class PropSWrapper:
         predicate_symbol = self.get_element_symbol(self.get_node_ind(predicate_node),
                                                    self._gensym_pred)
         # Create template
-        ## Collect items participating it from predicates and arguments
+        ## Collect items participating in it from predicates and arguments
         predicate_items = [(node.id, node.word)
                            for node in bare_predicate]
 
         ## Get arguments which are predicates on their own
         dep_preds = [node
                      for node in self.get_props_neighbors(predicate_node)
-                     if node.isPredicate]
+                     if node in self.predicate_nodes]
 
         ## Get entity arguments
         dep_entities = [node
                         for node in self.get_props_neighbors(predicate_node)
-                        if (not node.isPredicate)]
+                        if (node not in self.predicate_nodes)]
 
         # Concat, sort, and get the words forming the template
         # Element placeholders appear with curly brackets, for replacement with format
@@ -294,7 +303,7 @@ class PropSWrapper:
         for node in dep_entities:
             ent_symbol = self.get_element_symbol(self.get_node_ind(node),
                                                  self._gensym_ent)
-            sorted_entity = sorted(set(node.original_text),
+            sorted_entity = sorted(set(node.str),
                                    key = lambda n: n.index)
             self.entities[ent_symbol] = (" ".join([w.word
                                                    for w in sorted_entity]),
