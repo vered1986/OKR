@@ -90,6 +90,8 @@ def unify_mentions(mentions_dict):
 
 def argument_alignment(prop_mentions):
     """
+    Group the arguments-mentions of a Proposition, to different argument-slots. 
+    different argument-slots are representing different semantic roles relative to the predicate. 
     :return: list of lists, a grouping of (prop-mention-id, arg-mention-id) to arguments slots. 
     """
 
@@ -109,7 +111,6 @@ def argument_alignment(prop_mentions):
 
 
 def prepare_proposition_predicates_and_arguments(mentions):
-
     """
     Prepare the proposition data to mds export.
     :param mentions: a dict { prop_mention_id : prop_mention }
@@ -119,8 +120,7 @@ def prepare_proposition_predicates_and_arguments(mentions):
     representing a semantic role relative to the predicate. one slot may refer to multiple concepts across various
     proposition-mentions. 
     The mapping process  between original argument values (which are concepts - known Entity\Proposition)
-    to the new "consolidated" arguments slots is called Argument Alignment.
-    
+    to the new "consolidated" arguments slots is called Argument Alignment. 
     """
 
     argument_slots_grouping = argument_alignment(mentions)
@@ -186,6 +186,10 @@ def prepare_proposition_predicates_and_arguments(mentions):
 
 
 def prepare_okr_info_to_export(okr_info):
+    """
+    :param okr_info containing only primitive python types (i.e. json-convertable)  
+    :return: okr_info in a format suitable for mds (following the mds_input_schema.json) 
+    """
     # remove top-level unnecessary attributes
     clean_dict(okr_info, ["tweets", "entities", "propositions"])
     # prepare entities
