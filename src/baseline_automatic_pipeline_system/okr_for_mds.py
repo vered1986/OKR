@@ -130,8 +130,8 @@ def argument_alignment(prop_mentions):
                                                                             1)  # replace only first occurrence
                 arg_mention["parent_id"] = pseudo_id
 
-                logging.info("duplication handled: mention {} of prop {}, concept repeating is {}",
-                             prop_mention_id, prop_mention["parent"], referred_concept)
+                logging.info("duplication handled: mention {} of prop {}, concept repeating is {}".format(
+                             prop_mention_id, prop_mention["parent"], referred_concept))
             else:
                 # no duplications - append this arg-mention to the slot corresponding to referred concept
                 encountered_concepts.append(referred_concept)
