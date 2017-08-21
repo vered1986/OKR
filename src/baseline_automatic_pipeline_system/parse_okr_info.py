@@ -158,7 +158,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
     # generate Entities
     okr_info["entities"] = {}
     for entity_id, entity in enumerate(entities, start=1):
-        entity_id = "E" + str(entity_id)
+        entity_id = "E." + str(entity_id)
         entity_mentions = {}
         for new_mention_id, (mention_global_id, _) in enumerate(entity, start=1):
             mention_info = all_entity_mentions[mention_global_id]
@@ -184,7 +184,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
     # generate Propositions
     okr_info["propositions"] = {}
     for prop_id, prop in enumerate(propositions, start=1):
-        prop_id = "P" + str(prop_id)
+        prop_id = "P." + str(prop_id)
         prop_mentions = {}
         for new_mention_id, (mention_global_id, _) in enumerate(prop, start=1):
 

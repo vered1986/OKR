@@ -98,7 +98,7 @@ def argument_alignment(prop_mentions):
     # Currently, the argument alignment is simply grouping the argument referring to same concept.
     concepts = set( [arg_mention["parent_id"]
                      for prop_mention in prop_mentions.values()
-                     for arg_mention in prop_mention['argument_mentions'].values() ] )
+                     for arg_mention in prop_mention["argument_mentions"].values() ] )
 
     concept_to_slot_index = { concept : index for index, concept in enumerate(concepts) }
     number_of_slots = len(concept_to_slot_index)
@@ -106,7 +106,7 @@ def argument_alignment(prop_mentions):
     for prop_mention_id, prop_mention in prop_mentions.items():
         # save the concepts encountered in this prop-mention (to find duplications)
         encountered_concepts = []
-        for arg_mention_id, arg_mention in prop_mention['argument_mentions'].items():
+        for arg_mention_id, arg_mention in prop_mention["argument_mentions"].items():
             referred_concept = arg_mention["parent_id"]
             """
             Special treatment for cases where a template is containing two arguments referring to the same concept.
@@ -118,6 +118,20 @@ def argument_alignment(prop_mentions):
                 # duplication - special (new) slot necessary for arg
                 grouping[number_of_slots].append( (prop_mention_id, arg_mention_id) )
                 number_of_slots += 1    # increment number_of_slots to index a new slot
+                """
+                change the argument's concept-id at the mention's template - 
+                to differentiate between the occurrences of the same concept-id in the template, we must
+                change the concept-id used for the arg to an "pseudo-id". This way, we could map the args 
+                to different slots.
+                """
+                pseudo_id = referred_concept + "_a." + str(number_of_slots)
+                prop_mention["template"] = prop_mention["template"].replace("{"+referred_concept+"}",
+                                                                            "{"+pseudo_id+"}",
+                                                                            1)  # replace only first occurrence
+                arg_mention["parent_id"] = pseudo_id
+
+                logging.info("duplication handled: mention {} of prop {}, concept repeating is {}",
+                             prop_mention_id, prop_mention["parent"], referred_concept)
             else:
                 # no duplications - append this arg-mention to the slot corresponding to referred concept
                 encountered_concepts.append(referred_concept)
@@ -129,8 +143,8 @@ def argument_alignment(prop_mentions):
 
 def prepare_proposition_predicates_and_arguments(mentions):
     """
-    Prepare the proposition data to mds export.
-    :param mentions: a dict { prop_mention_id : prop_mention }
+    Prepare the proposition data to mds export (for a single Proposition).
+    :param mentions: a dict { prop_mention_id : prop_mention } of the Proposition
     :return: (proposition["predicates"], proposition["arguments"])
     Plan:
     1. Transform templates to use aligned arguments - new arguments symbols ("slots"),  
@@ -163,6 +177,8 @@ def prepare_proposition_predicates_and_arguments(mentions):
             concept_id = arg["parent_id"]
             slot = ids_to_slot[(prop_mention_id, arg_id)]
             modified_template = modified_template.replace("{"+concept_id+"}", "{"+slot+"}")
+            # remove traces of pseudo-concept-id, which are there only for handling duplication
+            arg["parent_id"] = concept_id = concept_id.split("_")[0]
             # maintain mapping of slot-concept relation
             slot_to_concept[slot].add(concept_id)
             # maintain sources slot-concept relation
@@ -255,5 +271,5 @@ if __name__ == "__main__":
 
     # export okr json to file and log
     import json
-    json.dump(okr_json, open(output_fn, "w"))
-    logging.info(okr_json)
+    json.dump(okr_json, open(output_fn, "w"), sort_keys=True, indent=3)
+    logging.debug(okr_json)
