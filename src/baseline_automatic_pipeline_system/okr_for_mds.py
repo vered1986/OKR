@@ -38,9 +38,12 @@ def get_tweets_from_files(tweets_fn, metadata_fn):
     # combine information to one dictionary
     tweets_full_info = {}
     for tweet_id in tweets_strings:
-        assert tweet_id in tweets_metadata, "tweet %s is missing metadata" % tweet_id
-        tweets_full_info[tweet_id] = { "id": tweet_id, "string": tweets_strings[tweet_id] }
-        tweets_full_info[tweet_id].update(tweets_metadata[tweet_id])
+        #assert tweet_id in tweets_metadata, "tweet %s is missing metadata" % tweet_id
+        if tweet_id in tweets_metadata:
+            tweets_full_info[tweet_id] = { "id": tweet_id, "string": tweets_strings[tweet_id] }
+            tweets_full_info[tweet_id].update(tweets_metadata[tweet_id])
+        else:
+            logging.warn("tweet %s is missing metadata, ignoring it" % tweet_id)
     return tweets_full_info
 
 
