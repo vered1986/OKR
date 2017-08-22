@@ -1,0 +1,163 @@
+{
+	"title": "OKR output for generation",
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"description": "specifications of the OKR json output, input for generation",
+	"type": "object",
+	"required": [ "entities", "propositions", "tweets" ],
+	"properties": {
+		"entities": {
+			"description": " a {entity-id : entity-data} json object ",
+			"type": "object",
+			"additionalProperties": {
+				"title": "Entity",
+				"type": "object",
+				"required": ["id", "mentions"],
+				"properties": {
+					"id": {
+						"description": "Entity ID (some unique number)",
+						"type": "string"
+					},
+					"alias": {
+						"description": "Alias of the entity", 
+						"type": "string"
+					},
+					"mentions": {
+						"description": "list of entity mentions from original tweets", 
+						"type": "array",
+						"minItems": 1,
+						"items": {
+							"title": "Entity Mention",
+							"type": "object",
+							"required": ["term", "sources"],
+							"properties": {
+								"term": { "type": "string" },
+								"sources": { 
+									"type": "array",
+									"items": { 
+										"title": "Source Tweet ID",
+										"type": "string" 
+									}
+								}
+							}						
+						}					
+					}
+				}
+			}
+		},
+		"propositions": {
+			"description": "a {proposition-id : proposition-data} json object",
+			"type": "object",
+			"additionalProperties": {
+				"title": "Proposition",
+				"type": "object",
+				"required": ["id", "predicates", "arguments"],
+				"properties": {
+					"id": {
+						"description": "Proposition ID (some unique number)",
+						"type": "string"
+					},
+					"alias": {
+						"description": "Alias of the proposition, such as first mention", 
+						"type": "string"
+					},
+					"attribution": {
+						"description": "ID of entity which attrbiuted this proposition, null if this is top-level proposition",
+						"type": ["string", "null"]
+					},
+					"predicates": {
+						"title": "Predicates information",
+						"type": "object",
+						"required": ["templates"],
+						"properties": {
+							"templates": {
+								"type": "array",
+								"items": {
+									"title": "Proposition Template",
+									"description": "unique template of the proposition, with placeholders for arguments",
+									"type": "object",
+									"required": ["template", "sources"],
+									"properties": {
+										"template": {
+											"description": "format of the proposition, with placeholders for arguments",
+											"type": "string"
+										},
+										"sources": {
+											"description": "IDs of source tweets",
+											"type": "array",
+											"items": {
+												"type": "string"
+											}
+										}
+									}
+								}
+							}
+						}
+
+					},
+					"arguments": {
+						"type": "array",
+						"items": {
+							"title": "Argument",
+							"type": "object",
+							"required": ["id", "values"],
+							"properties": {
+								"id": {
+									"description": "unique ID for an argument slot of the proposition",
+									"type": "string"
+								},
+								"label": {
+									"description": "QA-SRL, labeling the edge between predicate and argument",
+									"type": "string"
+								},
+								"values": {
+									"type": "array",
+									"items": {
+										"description": "the set of concepts (Entity/Proposition) assigned to the argument slot",
+										"type": "object",
+										"required": ["concept-id", "sources"],
+										"properties": {
+											"concept-id": {
+												"description": "the ID of the Entity/Proposition assigned to the argument slot",
+												"type": "string"								
+											},
+											"sources": {
+												"description": "IDs of source tweets that this concept serves as the argument",
+												"type": "array",
+												"items": {
+													"type": "string"
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}	
+		},
+		"tweets": {
+			"description": "a {tweet-id : tweet-data} json object",
+			"type": "object",
+			"additionalProperties": {
+				"title": "Tweet",
+				"type": "object",
+				"required": ["id", "string"],
+				"properties": {
+					"id": {
+						"description": "unique ID for tweet",
+						"type": "string"
+					},
+					"string": {
+						"description": "full tweet string",
+						"type": "string"
+					},
+					"timestamp": { 
+						"type": "string"
+					},
+					"author": {"type": "string" }
+				}
+			}
+		}
+	}
+}

@@ -1,10 +1,10 @@
 """Usage:
-   parse_okr_v2 --in=INPUT_FILE --out=OUTPUT_FILE
+   parse_okr_info --in=INPUT_FILE --out=OUTPUT_FILE
 
 Author: Ayal Klein
 
 baseline for automatic pipeline for okr-v2.
-run it from baseline_automatic_pipeline_system directory.
+run it from base OKR directory.
 
 steps:
 1. get list of sentences (tweets).
@@ -13,20 +13,23 @@ steps:
 4. use baseline coref system to cluster EntityMentions to Entities
 5. use baseline coref system to cluster PropositionMentions to Propositions
 6. create okr object based on the pipeline results
-7. evaluate automatic-pipline results
-8. generate output json
 
 """
 
-import sys, logging
+import sys, logging, copy, os
 from docopt import docopt
-sys.path.append("../common")
-sys.path.append("../baseline_system")
+# add all src sub-directories to path
+for pack in os.listdir("src"):
+    sys.path.append(os.path.join("src", pack))
 
 from parsers.props_wrapper import PropSWrapper
 import okr
 
-# TODO handle input (tweets raw data)
+props_wrapper = PropSWrapper(get_implicits=False,
+                  get_zero_args=False,
+                  get_conj=False)
+
+
 # step 1 - meantime suppose its just a simple text file of line-separated sentences
 def get_raw_sentences_from_file(input_fn):
     """ Get dict of { sentence_id : raw_sentence } out of file. ignore comments. """
@@ -43,13 +46,13 @@ def parse_single_sentences(raw_sentences):
     """ Return a dict of { sentence_id : parsed single-sentence representation } . uses props as parser.
     @:arg raw_sentences: a { sentence_id : raw_sentence } dict. 
     """
-    pw = PropSWrapper(get_implicits=False,
-                      get_zero_args=False,
-                      get_conj=False)
     parsed_sentences = {}
-    for sent_id, sent in raw_sentences.items():
-        pw.parse(sent)
-        parsed_sentences[sent_id] = pw.get_okr()
+    for sent_id, sent in raw_sentences.iteritems():
+        try:
+            props_wrapper.parse(sent)
+            parsed_sentences[sent_id] = props_wrapper.get_okr()
+        except:
+            logging.error("failed to parse sentence: " + sent)
     return parsed_sentences
 
 #step 3
@@ -60,20 +63,20 @@ def get_mention_lists(parsed_sentences):
     all_proposition_mentions = {}   # would be: { global-unique-id : proposition-mention-info-dict }
                                     # global-unique-id is composed from sent_id + "_" + key(=id-symbol at props_wrapper)
 
-    for sent_id, parsed_sent in parsed_sentences.items():
+    for sent_id, parsed_sent in parsed_sentences.iteritems():
         # *** entities ***
         sentence_entity_mentions = { sent_id + "_" + key :
                                          { "terms":          unicode(terms),
                                            "indices":       indices,
                                            "sentence_id":   sent_id }
-                                     for key, (terms, indices) in parsed_sent["Entities"].items() }
+                                     for key, (terms, indices) in parsed_sent["Entities"].iteritems() }
         all_entity_mentions.update(sentence_entity_mentions)
 
         # *** propositions ***
-        sentence_proposition_mentions = { str(sent_id) + "_" + key :
+        sentence_proposition_mentions = { sent_id + "_" + key :
                                               dict( {"sentence_id" : sent_id},
                                                     **prop_ment_info )
-                                          for key, prop_ment_info in parsed_sent["Predicates"].items() }
+                                          for key, prop_ment_info in parsed_sent["Predicates"].iteritems() }
         all_proposition_mentions.update(sentence_proposition_mentions)
 
     return all_entity_mentions, all_proposition_mentions
@@ -88,7 +91,7 @@ def cluster_entities(all_entity_mentions):
     only second element (terms) is being used for clustering.
     """
     mentions_for_clustering = [ (mention_id, mention_info["terms"])
-                                for mention_id, mention_info in all_entity_mentions.items()]
+                                for mention_id, mention_info in all_entity_mentions.iteritems()]
     clusters = cluster_mentions(mentions_for_clustering, entity_coref.score)
     return clusters
 
@@ -102,7 +105,7 @@ def cluster_propositions(all_proposition_mentions):
     only second element (head-lemma) is being used for clustering.
     """
     mentions_for_clustering = [(mention_id, mention_info["Head"]["Lemma"])
-                               for mention_id, mention_info in all_proposition_mentions.items()]
+                               for mention_id, mention_info in all_proposition_mentions.iteritems()]
     clusters = cluster_mentions(mentions_for_clustering, predicate_coref.score)
     return clusters
 
@@ -126,7 +129,7 @@ def generate_argument_mentions(prop_mention):
         argument_mentions[arg_id] = okr.ArgumentMention(id=arg_id,
                                                         desc="",
                                                         mention_type=mention_type,
-                                                        # TODO these will be modified afterward
+                                                        # these will be modified afterward
                                                         parent_id=None,
                                                         parent_mention_id=parent_mention_id)
     return argument_mentions
@@ -155,7 +158,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
     # generate Entities
     okr_info["entities"] = {}
     for entity_id, entity in enumerate(entities, start=1):
-        entity_id = "E" + str(entity_id)
+        entity_id = "E." + str(entity_id)
         entity_mentions = {}
         for new_mention_id, (mention_global_id, _) in enumerate(entity, start=1):
             mention_info = all_entity_mentions[mention_global_id]
@@ -181,7 +184,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
     # generate Propositions
     okr_info["propositions"] = {}
     for prop_id, prop in enumerate(propositions, start=1):
-        prop_id = "P" + str(prop_id)
+        prop_id = "P." + str(prop_id)
         prop_mentions = {}
         for new_mention_id, (mention_global_id, _) in enumerate(prop, start=1):
 
@@ -197,7 +200,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
                                                     argument_mentions=generate_argument_mentions(mention),
                                                     is_explicit=True)
 
-            # TODO this will also be modified afterwards
+            # this will also be modified afterwards
             mention_object.template = mention["Template"]
 
             # add this PropositionMention object to Proposition.mentions dict
@@ -210,40 +213,40 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
         okr_info["propositions"][prop_id] = okr.Proposition(id=prop_id,
                                                             name=all_prop_terms[0],
                                                             mentions=prop_mentions,
-                                                            attributor=None,  # TODO neccessary?
+                                                            attributor=None,  # TODO extract
                                                             terms=all_prop_terms,
                                                             entailment_graph=None)
 
     # modify PropositionMention - parent_mention_id, parent_id, and template
-    for prop_id, prop in okr_info["propositions"].items():
-        for prop_mention_id, prop_mention in prop.mentions.items():
+    for prop_id, prop in okr_info["propositions"].iteritems():
+        for prop_mention_id, prop_mention in prop.mentions.iteritems():
             # modify arguments
-            for argument_mention_id, argument_mention in prop_mention.argument_mentions.items():
+            for argument_mention_id, argument_mention in prop_mention.argument_mentions.iteritems():
                 mention_global_id = argument_mention.parent_mention_id
-                sent_id, symbol = mention_global_id.split("_")
                 # modify parent_mention_id
                 arg_orig_mention_object = global_mention_id_to_mention_object[mention_global_id]
                 argument_mention.parent_mention_id = arg_orig_mention_object.id
                 argument_mention.parent_id = arg_orig_mention_object.parent
-
                 # replace symbol of argument in template with id of its parent (Entity/Proposition)
+                sent_id, symbol = mention_global_id.split("_")
                 prop_mention.template = prop_mention.template.replace("{"+symbol+"}", "{"+argument_mention.parent_id+"}")
 
     return okr_info
 
 # all together (after parsing input files)
-def auto_pipeline_okr_v1(sentences):
-    """ Get okr_v1 object from raw-sentences.
+def auto_pipeline_okr_info(sentences):
+    """ Get okr_info dictionary from raw-sentences.
     :param sentences: a dict of { sentence_id : raw_sentence }
-    :return: OKR (v1) object
+    :return: okr_info, dictionary for initializing okr graphs.
+    okr_v1 can be initialized using:
+        okr.OKR(**okr_info)
     """
     parsed_sentences = parse_single_sentences(sentences)
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
     entities = cluster_entities(all_entity_mentions)
     propositions = cluster_propositions(all_proposition_mentions)
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
-    okr_v1 = okr.OKR(**okr_info)
-    return okr_v1
+    return okr_info
 
 # main
 if __name__ == "__main__":
@@ -257,7 +260,22 @@ if __name__ == "__main__":
 
     #automatic pipeline
     sentences = get_raw_sentences_from_file(input_fn)
-    okr_v1 = auto_pipeline_okr_v1(sentences)
+
+    """
+    The following section is equivalent to:
+        okr_info = auto_pipeline_okr_info(sentences)
+    We are using the full pipeline explicitly, for debug purposes.
+    """
+    parsed_sentences = parse_single_sentences(sentences)
+    all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
+    # coreference
+    entities = cluster_entities(all_entity_mentions)
+    propositions = cluster_propositions(all_proposition_mentions)
+    # consolidating info
+    okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
+
+    # using copy because OKR CTor changes the template of PropositionMentions of propositions attribute
+    okr_v1 = okr.OKR(**copy.deepcopy(okr_info))
 
     # log eventual results
     ## did we cluster any mentions?
