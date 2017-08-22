@@ -1,13 +1,18 @@
 """Usage:
    okr_for_mds --tweets=TWEETS_FILE --meta=TWEET_METADATA_FILE --out=OUTPUT_FILE
 
+Example:
+    python src/baseline_automatic_pipeline_system/okr_for_mds.py --out=boy_scouts.json \
+        --tweets=examples/tweets/boy_scouts_tweets --meta=examples/tweets/tweets_metadata
+
 TWEETS_FILE is a Tab-delimited file with: tweet-id <TAB> tweet-string
 TWEET_METADATA_FILE is a Tab-delimited file with: tweet-id <TAB> author <TAB> author-id <TAB> timestamp
     each line is a tweet record.
-
-Author: Ayal Klein
+OUTPUT_FILE would be the input json file for multi-document summarization
 
 run it from base OKR directory.
+
+Author: Ayal Klein
 
 Process okr information for Multi Document Summarization.
 the output is a json, following the mds_input_schema.json json-schema.
@@ -106,10 +111,10 @@ def argument_alignment(prop_mentions):
     concept_to_slot_index = { concept : index for index, concept in enumerate(concepts) }
     number_of_slots = len(concept_to_slot_index)
     grouping = defaultdict(list)
-    for prop_mention_id, prop_mention in prop_mentions.items():
+    for prop_mention_id, prop_mention in prop_mentions.iteritems():
         # save the concepts encountered in this prop-mention (to find duplications)
         encountered_concepts = []
-        for arg_mention_id, arg_mention in prop_mention["argument_mentions"].items():
+        for arg_mention_id, arg_mention in prop_mention["argument_mentions"].iteritems():
             referred_concept = arg_mention["parent_id"]
             """
             Special treatment for cases where a template is containing two arguments referring to the same concept.
@@ -163,7 +168,7 @@ def prepare_proposition_predicates_and_arguments(mentions):
                     for slot_index, slot_group in enumerate(argument_slots_grouping, start=1)
                     for arg_ids in slot_group }
 
-    templates = {m_id : m["template"] for m_id, m in mentions.items()}
+    templates = {m_id : m["template"] for m_id, m in mentions.iteritems()}
     # transform templates - replace concept-id with general (proposition-level) argument-slot
     modified_templates = set()
     sources_of_template = defaultdict(list) # a mapping from modified-template to a list of source tweet-ids
@@ -172,11 +177,11 @@ def prepare_proposition_predicates_and_arguments(mentions):
     slot_to_concept = defaultdict(set)
     # a mapping from (slot, concept-id) to list of sources of prop-mentions in which the concept is the value of the slot
     slot_concept_to_sources = defaultdict(list)
-    for prop_mention_id, template in templates.items():
+    for prop_mention_id, template in templates.iteritems():
         prop_mention = mentions[prop_mention_id]
         modified_template = template
         # iterate all args and replace old symbol (concept_id) with new symbol (slot)
-        for arg_id, arg in prop_mention["argument_mentions"].items():
+        for arg_id, arg in prop_mention["argument_mentions"].iteritems():
             concept_id = arg["parent_id"]
             slot = ids_to_slot[(prop_mention_id, arg_id)]
             modified_template = modified_template.replace("{"+concept_id+"}", "{"+slot+"}")
@@ -260,7 +265,7 @@ if __name__ == "__main__":
 
     # read tweets from input files
     tweets = get_tweets_from_files(tweets_fn, metadata_fn)
-    tweets_strings = {tweet_id : tweet["string"] for tweet_id, tweet in tweets.items() }
+    tweets_strings = {tweet_id : tweet["string"] for tweet_id, tweet in tweets.iteritems() }
     # retrieve okr info - explicitly call all pipeline stages, for debugging
     import parse_okr_info as prs
     parsed_sentences = prs.parse_single_sentences(tweets_strings)
@@ -274,5 +279,6 @@ if __name__ == "__main__":
 
     # export okr json to file and log
     import json
-    json.dump(okr_json, open(output_fn, "w"), sort_keys=True, indent=3)
+    with open(output_fn, "w") as fout:
+        json.dump(okr_json, fout, sort_keys=True, indent=3)
     logging.debug(okr_json)

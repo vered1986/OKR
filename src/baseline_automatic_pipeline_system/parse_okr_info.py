@@ -47,7 +47,7 @@ def parse_single_sentences(raw_sentences):
     @:arg raw_sentences: a { sentence_id : raw_sentence } dict. 
     """
     parsed_sentences = {}
-    for sent_id, sent in raw_sentences.items():
+    for sent_id, sent in raw_sentences.iteritems():
         try:
             props_wrapper.parse(sent)
             parsed_sentences[sent_id] = props_wrapper.get_okr()
@@ -63,20 +63,20 @@ def get_mention_lists(parsed_sentences):
     all_proposition_mentions = {}   # would be: { global-unique-id : proposition-mention-info-dict }
                                     # global-unique-id is composed from sent_id + "_" + key(=id-symbol at props_wrapper)
 
-    for sent_id, parsed_sent in parsed_sentences.items():
+    for sent_id, parsed_sent in parsed_sentences.iteritems():
         # *** entities ***
         sentence_entity_mentions = { sent_id + "_" + key :
                                          { "terms":          unicode(terms),
                                            "indices":       indices,
                                            "sentence_id":   sent_id }
-                                     for key, (terms, indices) in parsed_sent["Entities"].items() }
+                                     for key, (terms, indices) in parsed_sent["Entities"].iteritems() }
         all_entity_mentions.update(sentence_entity_mentions)
 
         # *** propositions ***
         sentence_proposition_mentions = { sent_id + "_" + key :
                                               dict( {"sentence_id" : sent_id},
                                                     **prop_ment_info )
-                                          for key, prop_ment_info in parsed_sent["Predicates"].items() }
+                                          for key, prop_ment_info in parsed_sent["Predicates"].iteritems() }
         all_proposition_mentions.update(sentence_proposition_mentions)
 
     return all_entity_mentions, all_proposition_mentions
@@ -91,7 +91,7 @@ def cluster_entities(all_entity_mentions):
     only second element (terms) is being used for clustering.
     """
     mentions_for_clustering = [ (mention_id, mention_info["terms"])
-                                for mention_id, mention_info in all_entity_mentions.items()]
+                                for mention_id, mention_info in all_entity_mentions.iteritems()]
     clusters = cluster_mentions(mentions_for_clustering, entity_coref.score)
     return clusters
 
@@ -105,7 +105,7 @@ def cluster_propositions(all_proposition_mentions):
     only second element (head-lemma) is being used for clustering.
     """
     mentions_for_clustering = [(mention_id, mention_info["Head"]["Lemma"])
-                               for mention_id, mention_info in all_proposition_mentions.items()]
+                               for mention_id, mention_info in all_proposition_mentions.iteritems()]
     clusters = cluster_mentions(mentions_for_clustering, predicate_coref.score)
     return clusters
 
@@ -218,10 +218,10 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
                                                             entailment_graph=None)
 
     # modify PropositionMention - parent_mention_id, parent_id, and template
-    for prop_id, prop in okr_info["propositions"].items():
-        for prop_mention_id, prop_mention in prop.mentions.items():
+    for prop_id, prop in okr_info["propositions"].iteritems():
+        for prop_mention_id, prop_mention in prop.mentions.iteritems():
             # modify arguments
-            for argument_mention_id, argument_mention in prop_mention.argument_mentions.items():
+            for argument_mention_id, argument_mention in prop_mention.argument_mentions.iteritems():
                 mention_global_id = argument_mention.parent_mention_id
                 # modify parent_mention_id
                 arg_orig_mention_object = global_mention_id_to_mention_object[mention_global_id]
