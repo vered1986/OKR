@@ -23,6 +23,14 @@ from okr import PropositionMention, Proposition, load_graphs_from_folder
 
 logging.basicConfig(level = logging.INFO)
 
+def evaluate_predicate_mention_between_two_graphs(pred_graph,gold_graph):
+    """
+
+    :param pred_graph:
+    :param gold_graph:
+    :return:
+    """
+    return compute_predicate_mention_agreement(gold_graph, pred_graph,ignore_filtering=True)
 
 def evaluate_predicate_mention(test_graphs, prop_ex, nom_file):
     """
