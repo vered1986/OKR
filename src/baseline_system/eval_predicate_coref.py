@@ -169,21 +169,22 @@ def cluster_prop_mentions_with_max_cluster(mention_list, score, argument_cluster
 
     return clusters
 
-# def score(prop, cluster):
-#     """
-#     Receives a proposition mention (mention, head_lemma, head_pos)
-#     and a cluster of proposition mentions, and returns a numeric value denoting the
-#     similarity between the mention to the cluster (% of similar mentions in the cluster)
-#     For similarity we compare any two non-stop words of the two mentions for same_synset, partial WordNet match, fuzzy string similarity.
-#     :param prop: the mention
-#     :param cluster: the cluster
-#     :return: a numeric value denoting the similarity between the mention to the cluster
-#     """
-#
-#     # if you want to compare the dependency heads only for similarity, use this:
-#     #return len([other for other in cluster if similar_words(other[1],prop[1])]) / (1.0 * len(cluster))
-#
-#     return len([other for other in cluster if some_word_match(other[2], prop[2])]) / (1.0 * len(cluster))
+
+def score_word_match(prop, cluster):
+    """
+    Receives a proposition mention (mention, head_lemma, head_pos)
+    and a cluster of proposition mentions, and returns a numeric value denoting the
+    similarity between the mention to the cluster (% of similar mentions in the cluster)
+    For similarity we compare any two non-stop words of the two mentions for same_synset, partial WordNet match, fuzzy string similarity.
+    :param prop: the mention
+    :param cluster: the cluster
+    :return: a numeric value denoting the similarity between the mention to the cluster
+    """
+
+    # if you want to compare the dependency heads only for similarity, use this:
+    #return len([other for other in cluster if similar_words(other[1],prop[1])]) / (1.0 * len(cluster))
+
+    return len([other for other in cluster if some_word_match(other[2], prop[2])]) / (1.0 * len(cluster))
 
 
 def score(prop, cluster):

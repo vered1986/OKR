@@ -13,7 +13,7 @@ from constants import NULL_VALUE
 from filter_propositions import filter_verbal, filter_non_verbal
 
 
-def compute_predicate_mention_agreement(graph1, graph2,ignore_filtering=False):
+def compute_predicate_mention_agreement(graph1, graph2):
     """
     Compute predicate mention agreement on two graphs
     :param graph1: the first annotator's graph
@@ -30,12 +30,10 @@ def compute_predicate_mention_agreement(graph1, graph2,ignore_filtering=False):
 
     prop_mention_acc = (accuracy1 + accuracy2) / 2
 
-    if not ignore_filtering:
-        consensual_graph1 = filter_mentions(graph1, consensual_mentions)
-        consensual_graph2 = filter_mentions(graph2, consensual_mentions)
-        return prop_mention_acc, consensual_graph1, consensual_graph2
+    consensual_graph1 = filter_mentions(graph1, consensual_mentions)
+    consensual_graph2 = filter_mentions(graph2, consensual_mentions)
 
-    return prop_mention_acc
+    return prop_mention_acc, consensual_graph1, consensual_graph2
 
 
 def compute_predicate_mention_agreement_verbal(graph1, graph2):

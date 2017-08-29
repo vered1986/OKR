@@ -43,12 +43,10 @@ def cluster_mentions_with_max_cluster(mention_list, score):
         for cluster in clusters:
             cluster_score = score(mention, cluster)
             if cluster_score > 0.2:
-                # cluster.add(mention)
                 if cluster_score > max_score:
                     max_score = cluster_score
                     max_cluster = cluster
                     found_cluster = True
-                #break
 
         if found_cluster:
             max_cluster.add(mention)

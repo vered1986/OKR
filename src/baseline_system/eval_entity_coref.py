@@ -50,7 +50,6 @@ def evaluate_entity_coref(test_graphs):
         # Cluster the entities
         entities = [(str(mention), unicode(mention.terms)) for entity in graph.entities.values() for mention in
                     entity.mentions.values()]
-        # clusters = cluster_mentions_with_max_cluster(entities, score)
         clusters = cluster_mentions(entities, score)
         clusters = [set([item[0] for item in cluster]) for cluster in clusters]
 

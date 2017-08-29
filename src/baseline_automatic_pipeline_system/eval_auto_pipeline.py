@@ -31,11 +31,13 @@ from eval_entity_coref import eval_entity_coref_between_two_graphs
 from eval_predicate_coref import eval_predicate_coref_between_two_graphs
 from eval_predicate_mention import evaluate_predicate_mention_between_two_graphs
 
+
 def eval_auto_pipeline(input_folder,gold_folder):
     """
-    Evaluate entity and predicate coreference for auto-created graphs and their gold graphs
+    Evaluate entity coreference, predicate coreference, entity and predicate extraction
+    for auto-created graphs and their gold graphs
     :param input_folder: Path to the input files folder (text files)
-    :param gold_foldar: Path to the gold graphs folder (xml files)
+    :param gold_folder: Path to the gold graphs folder (xml files)
     :return:
     """
 
@@ -55,11 +57,11 @@ def eval_auto_pipeline(input_folder,gold_folder):
 
     for input_file,gold_file in zip(sorted_input,sorted_gold):
         print 'Evaluate input file '+ input_file + ' with gold file ' + gold_file
-        sentences = get_raw_sentences_from_file(input_folder + '/' + input_file)
+        sentences = get_raw_sentences_from_file(os.path.join(input_folder, input_file))
         okr_info = auto_pipeline_okr_info(sentences)
         predicted_graph = OKR(**copy.deepcopy(okr_info))
 
-        gold_graph = load_graph_from_file(gold_folder + '/' + gold_file)
+        gold_graph = load_graph_from_file(os.path.join(gold_folder, gold_file))
 
         # Evaluate
         pred_mention_score = evaluate_predicate_mention_between_two_graphs(predicted_graph,gold_graph)
@@ -74,12 +76,12 @@ def eval_auto_pipeline(input_folder,gold_folder):
 
     predicate_scores = np.mean(predicate_coref_scores, axis=0).tolist()
     entity_scores = np.mean(entity_coref_scores, axis=0).tolist()
-    predicate_mention_score = np.mean(predicate_mention_scores)
+    predicate_mention_score = np.mean(predicate_mention_scores, axis=0).tolist()
     entity_mention_score = np.mean(entity_mention_scores, axis=0).tolist()
 
-    print 'Predicate mentions(full): %.3f' % predicate_mention_score
+    print 'Predicate mentions(F1): %.3f' % predicate_mention_score[0]
 
-    print 'Entity mentions: %.3f' % entity_mention_score[0]
+    print 'Entity mentions(F1): %.3f' % entity_mention_score[0]
 
     pred_muc, pred_b_cube, pred_ceaf_c, pred_mela = predicate_scores
     print 'Predicate coreference: MUC=%.3f, B^3=%.3f, CEAF_C=%.3f, MELA=%.3f' % \
