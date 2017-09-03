@@ -24,6 +24,28 @@ from okr import PropositionMention, Proposition, load_graphs_from_folder
 logging.basicConfig(level = logging.INFO)
 
 
+def evaluate_predicate_mention_between_two_graphs(pred_graph,gold_graph):
+    """
+    Receives a predicted graph (after the automatic pipeline) and a gold graph and
+    compute the f1,recall and precision scores for the predicate mentions extraction
+    :param pred_graph: Auto-created graph
+    :param gold_graph: the gold standard graph
+    :return: numpy array of the f1,recall and precision scores
+    """
+
+    # Get the predicate mentions in both graphs
+    pred_graph_prop_mentions = set.union(*[set(map(str, prop.mentions.values())) for prop in pred_graph.propositions.values()])
+    gold_graph_prop_mentions = set.union(*[set(map(str, prop.mentions.values())) for prop in gold_graph.propositions.values()])
+
+    consensual_mentions = pred_graph_prop_mentions.intersection(gold_graph_prop_mentions)
+
+    precision = len(consensual_mentions) * 1.0 / len(pred_graph_prop_mentions) if len(pred_graph_prop_mentions) > 0 else 0.0
+    recall = len(consensual_mentions) * 1.0 / len(gold_graph_prop_mentions) if len(gold_graph_prop_mentions) > 0 else 0.0
+
+    f1 = 2.00 * (recall * precision) / (recall + precision) if (recall + precision) > 0.0 else 0.0
+    return np.array([f1, recall, precision])
+
+
 def evaluate_predicate_mention(test_graphs, prop_ex, nom_file):
     """
     Calculate the average predicate mention metric on test graphs.

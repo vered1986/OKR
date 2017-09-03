@@ -8,18 +8,20 @@ Author: Rachel Wities
 
 import sys
 
+sys.path.append('../common')
 sys.path.append('../agreement')
 
 import spacy
 import numpy as np
 
+from okr import *
 from munkres import *
 from entity_coref import *
 from fuzzywuzzy import fuzz
 from spacy.en import English
 from num2words import num2words
 from nltk.corpus import wordnet as wn
-from clustering_common import cluster_mentions
+from clustering_common import cluster_mentions,cluster_mentions_with_max_cluster
 
 # Don't use spacy tokenizer, because we originally used NLTK to tokenize the files and they are already tokenized
 nlp = spacy.load('en')
@@ -58,6 +60,18 @@ def evaluate_entity_coref(test_graphs):
     scores = np.mean(scores, axis=0).tolist()
 
     return scores
+
+
+def eval_entity_coref_between_two_graphs(predicted_graph,gold_graph):
+    """
+    Receives a predicted graph (after the automatic pipeline) and a gold graph and
+    prepare the predicted graph for the evaluation
+    :param predicted_graph: Auto-created graph
+    :param gold_graph: the gold standard graph
+    :return: the entity coreference metrics
+    """
+    predicted_clusters = [set(map(str, entity.mentions.values())) for entity in predicted_graph.entities.values()]
+    return eval_clusters(predicted_clusters, gold_graph)
 
 
 def eval_clusters(clusters, graph):

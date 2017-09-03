@@ -32,13 +32,13 @@ props_wrapper = PropSWrapper(get_implicits=False,
 
 # step 1 - meantime suppose its just a simple text file of line-separated sentences
 def get_raw_sentences_from_file(input_fn):
-    """ Get dict of { sentence_id : raw_sentence } out of file. ignore comments. """
+    """ Get dict of { sentence_id : raw_sentence } out of file. ignore comments """
     raw_sentences = [ line.strip()
                       for line in open(input_fn, "r")
-                      if line.strip() and not line.startswith('#') ]
+                      if line.strip() and not line.startswith('#') and not line.strip().isdigit() and not line.startswith('<name>')]
 
     # make it a dict {id : sentence}, id starting from 1
-    sentences_dict = {"S"+str(sent_id) : sentence for sent_id, sentence in enumerate(raw_sentences, start=1)}
+    sentences_dict = {str(sent_id) : sentence for sent_id, sentence in enumerate(raw_sentences, start=1)}
     return sentences_dict
 
 # step 2
@@ -104,7 +104,7 @@ def cluster_propositions(all_proposition_mentions):
     must cluster hashable items (uses set()) - thus giving only the unique id as first element.
     only second element (head-lemma) is being used for clustering.
     """
-    mentions_for_clustering = [(mention_id, mention_info["Head"]["Lemma"])
+    mentions_for_clustering = [(mention_id, mention_info["Head"]["Lemma"],mention_info['Bare predicate'][0])
                                for mention_id, mention_info in all_proposition_mentions.iteritems()]
     clusters = cluster_mentions(mentions_for_clustering, predicate_coref.score)
     return clusters
@@ -164,7 +164,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
             mention_info = all_entity_mentions[mention_global_id]
             mention_object = okr.EntityMention(id=new_mention_id,
                                                sentence_id=mention_info["sentence_id"],
-                                               indices=mention_info["indices"],
+                                               indices=list(mention_info["indices"]),
                                                terms=mention_info["terms"],
                                                parent=entity_id)
 
@@ -186,7 +186,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
     for prop_id, prop in enumerate(propositions, start=1):
         prop_id = "P." + str(prop_id)
         prop_mentions = {}
-        for new_mention_id, (mention_global_id, _) in enumerate(prop, start=1):
+        for new_mention_id, (mention_global_id, _,_) in enumerate(prop, start=1):
 
             # retrieve original prop-mention information by the unique id
             mention = all_proposition_mentions[mention_global_id]
@@ -194,7 +194,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
             # generate PropositionMention object
             mention_object = okr.PropositionMention(id=new_mention_id,
                                                     sentence_id=mention["sentence_id"],
-                                                    indices=mention["Bare predicate"][1],
+                                                    indices=list(mention["Bare predicate"][1]),
                                                     terms=mention["Bare predicate"][0],
                                                     parent=prop_id,
                                                     argument_mentions=generate_argument_mentions(mention),
