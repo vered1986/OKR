@@ -303,7 +303,7 @@ class PropSWrapper:
         for node in dep_entities:
             ent_symbol = self.get_element_symbol(self.get_node_ind(node),
                                                  self._gensym_ent)
-            sorted_entity = sorted(set(node.str),
+            sorted_entity = sorted(set(node.original_text),
                                    key = lambda n: n.index)
             self.entities[ent_symbol] = (" ".join([w.word
                                                    for w in sorted_entity]),
