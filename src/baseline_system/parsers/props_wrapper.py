@@ -108,6 +108,55 @@ class PropSWrapper:
         for pred in self.predicate_nodes:
             self.parse_predicate(pred)
 
+        # Split entities according to OKR notations
+        self.entities = self._split_entities()
+
+    def _split_entities(self):
+        """
+        After getting longer PropS entities composed of NPs - further split
+        them according to the OKR notion of single word entities.
+        """
+        ret = {}
+
+        # Get mapping from all symbol to the word index of their head
+        ent_symbol_to_head_ind = dict([(v, k) for (k, v) in self.tok_ind_to_symbol.iteritems()])
+        for ent_symbol, (ent_str, ent_indices) in self.entities.iteritems():
+            logging.debug("splitting: {} {} {}".format(ent_symbol, ent_str, ent_indices))
+            logging.debug("head: {}".format(ent_symbol_to_head_ind[ent_symbol]))
+            for word, ind in zip(ent_str.split(" "),
+                                 ent_indices):
+                if ind + 1 ==  ent_symbol_to_head_ind[ent_symbol]:
+                    # Replace this entity with its head
+                    ret[ent_symbol] = (word, tuple([ind]))
+                else:
+                    if self.dep_tree[ind + 1].pos == 'DT':
+                        # Dont include determiners
+                        continue
+
+                    # Otherwise, start by creating new symbols for the split words
+                    new_ent_symbol = self.get_element_symbol(ind + 1,
+                                                             self._gensym_ent)
+                    ret[new_ent_symbol] = (word, tuple([ind]))
+
+                    # Then add an implicit relation to the head
+                    self.predicates[self._gensym_pred()] = {"Bare predicate": (bare_predicate_str,
+                                                                tuple(bare_predicate_indices)),
+                                                            "Template": template,
+                                                            "Head":{
+                                                                "Surface": (dep_tree.word,
+                                                                            [dep_tree.id - 1]),
+                                                                "Lemma": predicate_node.features.get('Lemma', ''),
+                                                                "POS": dep_tree.pos,
+                                                            },
+                                                            "Arguments":[self.get_element_symbol(self.get_node_ind(node),
+                                                                                                 self._gensym_ent)
+                                                                         for node in dep_entities] + \
+                                                            [self.get_element_symbol(self.get_node_ind(node),
+                                                                                     self._gensym_pred)
+                                                             for node in dep_preds]
+                    }
+
+        return ret
 
     def get_sentence(self):
         """
@@ -303,8 +352,13 @@ class PropSWrapper:
         for node in dep_entities:
             ent_symbol = self.get_element_symbol(self.get_node_ind(node),
                                                  self._gensym_ent)
-            sorted_entity = sorted(set(node.str),
-                                   key = lambda n: n.index)
+            try:
+                sorted_entity = sorted(set(node.original_text),
+                                       key = lambda n: n.index)
+            except:
+                sorted_entity = sorted(set(node.str),
+                                       key = lambda n: n.index)
+
             self.entities[ent_symbol] = (" ".join([w.word
                                                    for w in sorted_entity]),
                                          tuple([w.index - 1
