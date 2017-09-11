@@ -129,8 +129,6 @@ class PropSWrapper:
                 "Arguments": arg_symbols
             }
 
-
-
     def _split_entities(self):
         """
         After getting longer PropS entities composed of NPs - further split
@@ -145,23 +143,54 @@ class PropSWrapper:
         for ent_head_symbol, (ent_str, ent_indices) in self.entities.iteritems():
             for word, ind in zip(ent_str.split(" "),
                                  ent_indices):
+                cur_dep_node = self.dep_tree[ind + 1]
+
                 if ind + 1 ==  ent_symbol_to_head_ind[ent_head_symbol]:
                     # Replace this entity with its head
                     ret[ent_head_symbol] = (word, tuple([ind]))
                 else:
-                    if  (self.dep_tree[ind + 1].parent_relation in ['prep', 'det']):
+                    if  (cur_dep_node.parent_relation in ['det']):
                         # Dont include determiners or prepositions
                         continue
 
-                    # Otherwise, start by creating new symbols for the split words
-                    new_ent_symbol = self.get_element_symbol(ind + 1,
-                                                             self._gensym_ent)
-                    ret[new_ent_symbol] = (word, tuple([ind]))
+                    if (cur_dep_node.parent_relation in ['prep']) and \
+                         (len(cur_dep_node.children) == 1) and \
+                         (cur_dep_node.children[0].id + 1 in ent_indices):
+                        # This is a preposition whose sole child is in this span
+                        # -> Add the preposition as predicate
+                        prep_child = cur_dep_node.children[0]
+                        prep_child_symbol = self.get_element_symbol(prep_child.id + 1,
+                                                                    self._gensym_ent)
+                        ret[prep_child_symbol] = (prep_child.word,
+                                                  tuple([prep_child.id]))
 
-                    # Then add an implicit relation to the head
-                    self.predicates[self._gensym_pred()] = self.create_implicit_proposition(new_ent_symbol,
-                                                                                            ent_head_symbol)
+                        prep_symbol = self.get_element_symbol(ind + 1,
+                                                              self._gensym_pred)
 
+                        self.predicates[prep_symbol] = {"Bare predicate": word,
+                                                        "Template": " ".join([ent_head_symbol,
+                                                                              word,
+                                                                              prep_child_symbol]), 
+                                                        "Head":{
+                                                            "Surface": word,
+                                                            "Lemma": word,
+                                                            "POS": "IN",
+                                                        },
+                                                        "Arguments": [end_head_symbol,
+                                                                      prep_child_symbol]
+                                                                  }
+
+                    elif (cur_dep_node.parent_relation == 'pobj') and \
+                         (cur_dep_node.parent.id + 1 in ent_indices):
+                        # If not a preposition, then add an implicit relation to the head
+                        # Start by creating new symbols for this word
+                        new_ent_symbol = self.get_element_symbol(ind + 1,
+                                                                 self._gensym_ent)
+                        ret[new_ent_symbol] = (word, tuple([ind]))
+
+                        # Then add an implicit relation
+                        self.predicates[self._gensym_pred()] = self.create_implicit_proposition(new_ent_symbol,
+                                                                                                ent_head_symbol)
         return ret
 
     def get_sentence(self):
