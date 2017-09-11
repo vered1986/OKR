@@ -111,6 +111,26 @@ class PropSWrapper:
         # Split entities according to OKR notations
         self.entities = self._split_entities()
 
+    # A static symbol representing the string and
+    # index associated with implicit predicates
+    IMPLICIT_SYMBOL = ("IMPLICIT", tuple([-1]))
+
+    def create_implicit_proposition(self, *arg_symbols):
+        """
+        Returns an implicit proposition over the given argument symbols.
+        """
+        return {"Bare predicate": PropSWrapper.IMPLICIT_SYMBOL,
+                "Template": " ".join(arg_symbols), # The template ommits the symbol
+                "Head":{
+                    "Surface": PropSWrapper.IMPLICIT_SYMBOL[0],
+                    "Lemma": PropSWrapper.IMPLICIT_SYMBOL[0],
+                    "POS": PropSWrapper.IMPLICIT_SYMBOL[0]
+                },
+                "Arguments": arg_symbols
+            }
+
+
+
     def _split_entities(self):
         """
         After getting longer PropS entities composed of NPs - further split
@@ -120,14 +140,14 @@ class PropSWrapper:
 
         # Get mapping from all symbol to the word index of their head
         ent_symbol_to_head_ind = dict([(v, k) for (k, v) in self.tok_ind_to_symbol.iteritems()])
-        for ent_symbol, (ent_str, ent_indices) in self.entities.iteritems():
-            logging.debug("splitting: {} {} {}".format(ent_symbol, ent_str, ent_indices))
-            logging.debug("head: {}".format(ent_symbol_to_head_ind[ent_symbol]))
+
+        # Iterate over entities and split where necessary
+        for ent_head_symbol, (ent_str, ent_indices) in self.entities.iteritems():
             for word, ind in zip(ent_str.split(" "),
                                  ent_indices):
-                if ind + 1 ==  ent_symbol_to_head_ind[ent_symbol]:
+                if ind + 1 ==  ent_symbol_to_head_ind[ent_head_symbol]:
                     # Replace this entity with its head
-                    ret[ent_symbol] = (word, tuple([ind]))
+                    ret[ent_head_symbol] = (word, tuple([ind]))
                 else:
                     if  (self.dep_tree[ind + 1].parent_relation in ['prep', 'det']):
                         # Dont include determiners or prepositions
@@ -139,23 +159,8 @@ class PropSWrapper:
                     ret[new_ent_symbol] = (word, tuple([ind]))
 
                     # Then add an implicit relation to the head
-                    # TODO adapt this to create IMPLICIT:
-                    # self.predicates[self._gensym_pred()] = {"Bare predicate": (bare_predicate_str,
-                    #                                             tuple(bare_predicate_indices)),
-                    #                                         "Template": template,
-                    #                                         "Head":{
-                    #                                             "Surface": (dep_tree.word,
-                    #                                                         [dep_tree.id - 1]),
-                    #                                             "Lemma": predicate_node.features.get('Lemma', ''),
-                    #                                             "POS": dep_tree.pos,
-                    #                                         },
-                    #                                         "Arguments":[self.get_element_symbol(self.get_node_ind(node),
-                    #                                                                              self._gensym_ent)
-                    #                                                      for node in dep_entities] + \
-                    #                                         [self.get_element_symbol(self.get_node_ind(node),
-                    #                                                                  self._gensym_pred)
-                    #                                          for node in dep_preds]
-                    # }
+                    self.predicates[self._gensym_pred()] = self.create_implicit_proposition(new_ent_symbol,
+                                                                                            ent_head_symbol)
 
         return ret
 
