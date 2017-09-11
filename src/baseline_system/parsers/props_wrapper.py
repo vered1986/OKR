@@ -129,8 +129,8 @@ class PropSWrapper:
                     # Replace this entity with its head
                     ret[ent_symbol] = (word, tuple([ind]))
                 else:
-                    if self.dep_tree[ind + 1].pos == 'DT':
-                        # Dont include determiners
+                    if  (self.dep_tree[ind + 1].parent_relation in ['prep', 'det']):
+                        # Dont include determiners or prepositions
                         continue
 
                     # Otherwise, start by creating new symbols for the split words
@@ -139,7 +139,7 @@ class PropSWrapper:
                     ret[new_ent_symbol] = (word, tuple([ind]))
 
                     # Then add an implicit relation to the head
-                    # TODO:
+                    # TODO adapt this to create IMPLICIT:
                     # self.predicates[self._gensym_pred()] = {"Bare predicate": (bare_predicate_str,
                     #                                             tuple(bare_predicate_indices)),
                     #                                         "Template": template,
