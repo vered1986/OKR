@@ -14,6 +14,7 @@ The dataset developed for the paper can be found [here](http://u.cs.biu.ac.il/~n
 * numpy
 * [bsddb](https://docs.python.org/2/library/bsddb.html)
 * spacy
+* stop-words
 
 <b>Quick Start:</b>
 
