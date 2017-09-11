@@ -169,7 +169,8 @@ class PropSWrapper:
                         prep_symbol = self.get_element_symbol(ind + 1,
                                                               self._gensym_pred)
 
-                        self.predicates[prep_symbol] = {"Bare predicate": word,
+                        self.predicates[prep_symbol] = {"Bare predicate": (word,
+                                                                           tuple([ind])),
                                                         "Template": " ".join([ent_head_symbol,
                                                                               word,
                                                                               prep_child_symbol]),
