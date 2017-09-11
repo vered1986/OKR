@@ -155,14 +155,16 @@ class PropSWrapper:
 
                     if (cur_dep_node.parent_relation in ['prep']) and \
                          (len(cur_dep_node.children) == 1) and \
-                         (cur_dep_node.children[0].id + 1 in ent_indices):
+                         (cur_dep_node.children[0].id - 1 in ent_indices):
                         # This is a preposition whose sole child is in this span
                         # -> Add the preposition as predicate
+                        logging.debug("found prep: {} {}".format(cur_dep_node.children[0].id - 1,
+                                                                 ent_indices))
                         prep_child = cur_dep_node.children[0]
-                        prep_child_symbol = self.get_element_symbol(prep_child.id + 1,
+                        prep_child_symbol = self.get_element_symbol(prep_child.id,
                                                                     self._gensym_ent)
                         ret[prep_child_symbol] = (prep_child.word,
-                                                  tuple([prep_child.id]))
+                                                  tuple([prep_child.id - 1]))
 
                         prep_symbol = self.get_element_symbol(ind + 1,
                                                               self._gensym_pred)
@@ -170,18 +172,18 @@ class PropSWrapper:
                         self.predicates[prep_symbol] = {"Bare predicate": word,
                                                         "Template": " ".join([ent_head_symbol,
                                                                               word,
-                                                                              prep_child_symbol]), 
+                                                                              prep_child_symbol]),
                                                         "Head":{
                                                             "Surface": word,
                                                             "Lemma": word,
                                                             "POS": "IN",
                                                         },
-                                                        "Arguments": [end_head_symbol,
+                                                        "Arguments": [ent_head_symbol,
                                                                       prep_child_symbol]
                                                                   }
 
-                    elif (cur_dep_node.parent_relation == 'pobj') and \
-                         (cur_dep_node.parent.id + 1 in ent_indices):
+                    elif not ((cur_dep_node.parent_relation == 'pobj') and \
+                              (cur_dep_node.parent.id - 1 in ent_indices)):
                         # If not a preposition, then add an implicit relation to the head
                         # Start by creating new symbols for this word
                         new_ent_symbol = self.get_element_symbol(ind + 1,
