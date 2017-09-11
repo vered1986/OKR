@@ -139,22 +139,23 @@ class PropSWrapper:
                     ret[new_ent_symbol] = (word, tuple([ind]))
 
                     # Then add an implicit relation to the head
-                    self.predicates[self._gensym_pred()] = {"Bare predicate": (bare_predicate_str,
-                                                                tuple(bare_predicate_indices)),
-                                                            "Template": template,
-                                                            "Head":{
-                                                                "Surface": (dep_tree.word,
-                                                                            [dep_tree.id - 1]),
-                                                                "Lemma": predicate_node.features.get('Lemma', ''),
-                                                                "POS": dep_tree.pos,
-                                                            },
-                                                            "Arguments":[self.get_element_symbol(self.get_node_ind(node),
-                                                                                                 self._gensym_ent)
-                                                                         for node in dep_entities] + \
-                                                            [self.get_element_symbol(self.get_node_ind(node),
-                                                                                     self._gensym_pred)
-                                                             for node in dep_preds]
-                    }
+                    # TODO:
+                    # self.predicates[self._gensym_pred()] = {"Bare predicate": (bare_predicate_str,
+                    #                                             tuple(bare_predicate_indices)),
+                    #                                         "Template": template,
+                    #                                         "Head":{
+                    #                                             "Surface": (dep_tree.word,
+                    #                                                         [dep_tree.id - 1]),
+                    #                                             "Lemma": predicate_node.features.get('Lemma', ''),
+                    #                                             "POS": dep_tree.pos,
+                    #                                         },
+                    #                                         "Arguments":[self.get_element_symbol(self.get_node_ind(node),
+                    #                                                                              self._gensym_ent)
+                    #                                                      for node in dep_entities] + \
+                    #                                         [self.get_element_symbol(self.get_node_ind(node),
+                    #                                                                  self._gensym_pred)
+                    #                                          for node in dep_preds]
+                    # }
 
         return ret
 
