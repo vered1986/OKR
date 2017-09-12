@@ -120,7 +120,7 @@ class PropSWrapper:
         Returns an implicit proposition over the given argument symbols.
         """
         return {"Bare predicate": PropSWrapper.IMPLICIT_SYMBOL,
-                "Template": " ".join(arg_symbols), # The template ommits the symbol
+                "Template": " ".join(["{{{}}}".format(symbol) for symbol in arg_symbols]),
                 "Head":{
                     "Surface": PropSWrapper.IMPLICIT_SYMBOL[0],
                     "Lemma": PropSWrapper.IMPLICIT_SYMBOL[0],
@@ -158,8 +158,6 @@ class PropSWrapper:
                          (cur_dep_node.children[0].id - 1 in ent_indices):
                         # This is a preposition whose sole child is in this span
                         # -> Add the preposition as predicate
-                        logging.debug("found prep: {} {}".format(cur_dep_node.children[0].id - 1,
-                                                                 ent_indices))
                         prep_child = cur_dep_node.children[0]
                         prep_child_symbol = self.get_element_symbol(prep_child.id,
                                                                     self._gensym_ent)
@@ -171,9 +169,9 @@ class PropSWrapper:
 
                         self.predicates[prep_symbol] = {"Bare predicate": (word,
                                                                            tuple([ind])),
-                                                        "Template": " ".join([ent_head_symbol,
-                                                                              word,
-                                                                              prep_child_symbol]),
+                                                        "Template": "{{{}}} {} {{{}}}".format(ent_head_symbol,
+                                                                                              word,
+                                                                                              prep_child_symbol),
                                                         "Head":{
                                                             "Surface": word,
                                                             "Lemma": word,
