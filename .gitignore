@@ -9,3 +9,7 @@ venv/*
 resources/resource_dictionary.db
 examples/tweets/
 src/baseline_automatic_pipeline_system/tmp
+examples/from_vered.json
+examples/from_vered.txt
+examples/problematic.json
+examples/problematic.txt
