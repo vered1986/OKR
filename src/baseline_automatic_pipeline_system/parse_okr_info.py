@@ -193,13 +193,14 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
             mention = all_proposition_mentions[mention_global_id]
 
             # generate PropositionMention object
+            bare_predicate = mention["Bare predicate"]
             mention_object = okr.PropositionMention(id=new_mention_id,
                                                     sentence_id=mention["sentence_id"],
-                                                    indices=list(mention["Bare predicate"][1]),
-                                                    terms=mention["Bare predicate"][0],
+                                                    indices=list(bare_predicate[1]),
+                                                    terms=bare_predicate[0],
                                                     parent=prop_id,
                                                     argument_mentions=generate_argument_mentions(mention),
-                                                    is_explicit=True)
+                                                    is_explicit=not bare_predicate == PropSWrapper.IMPLICIT_SYMBOL)
 
             # this will also be modified afterwards
             mention_object.template = mention["Template"]
