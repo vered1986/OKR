@@ -17,12 +17,12 @@ def cluster_mentions(mention_list, score):
         found_cluster = False
         for cluster in clusters:
             if score(mention, cluster) > 0.5:
-                cluster.add(mention)
+                cluster.append(mention)
                 found_cluster = True
                 break
 
         if not found_cluster:
-            clusters.append(set([mention]))
+            clusters.append([mention])
 
     return clusters
 
@@ -49,8 +49,8 @@ def cluster_mentions_with_max_cluster(mention_list, score):
                     found_cluster = True
 
         if found_cluster:
-            max_cluster.add(mention)
+            max_cluster.append(mention)
         else:
-            clusters.append(set([mention]))
+            clusters.append([mention])
 
     return clusters

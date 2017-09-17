@@ -101,16 +101,39 @@ def cluster_entities(all_entity_mentions):
     return clusters
 
 #step 5
-def cluster_propositions(all_proposition_mentions):
+def cluster_propositions(all_proposition_mentions, all_entity_mentions):
     """ Cluster proposition-mentions to propositions, Using baseline coreference functions.  """
+    """
+    for clustering, each mention is a (mention-unique-id, mention-head-lemma, mention-full-info) tuple.
+    mention-head-lemma is a string, and is given for backward compatibitly. 
+    mention-full-info is a dict containing all the info about the proposition-mention as given by props_wrapper,
+    with a modification of the "Arguments" field, which would be a dict mapping template-symbols (e.g. "A1" or "P2") 
+    to their mention records.
+    """
+    # get all entities and propositions into all_concepts
+    all_concepts = all_proposition_mentions.copy()
+    all_concepts.update(all_entity_mentions)
+    # prepare mentions for clustering
+    mentions_for_clustering = []
+    for mention_id, mention_info in all_proposition_mentions.iteritems():
+        head_lemma = mention_info["Head"]["Lemma"]
+        """
+        get all relevant concepts - all concepts which their symbol's prefix is the sentence-id.
+        This is because the template is using the single-sentence symbol - Ai for entities ans Pi for propositions.
+        The mention id is of the form <sentence-id>_<single-sentence-symbol>
+        """
+        sentence_id = mention_info["sentence_id"]
+        relevent_concepts = { m_id.split("_")[1] : m_info
+                              for m_id, m_info in all_concepts.iteritems()
+                              if m_id.split("_")[0] == sentence_id }
+        # construct a mapping between template-symbols (e.g. "A1" or "P2") to their mention records
+        arguments_map = { arg : relevent_concepts[arg] for arg in mention_info["Arguments"] }
+        mention_info.update({"Arguments": arguments_map})
+        mentions_for_clustering.append( (mention_id, head_lemma, mention_info) )
+
+    # cluster the list of mentions to coreference chains
     import eval_predicate_coref as predicate_coref
     from clustering_common import cluster_mentions
-    """
-    must cluster hashable items (uses set()) - thus giving only the unique id as first element.
-    only second element (head-lemma) is being used for clustering.
-    """
-    mentions_for_clustering = [(mention_id, mention_info["Head"]["Lemma"],mention_info['Bare predicate'][0])
-                               for mention_id, mention_info in all_proposition_mentions.iteritems()]
     clusters = cluster_mentions(mentions_for_clustering, predicate_coref.score)
     return clusters
 
@@ -350,7 +373,7 @@ def auto_pipeline_okr_info(sentences):
     parsed_sentences = parse_single_sentences(sentences)
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
     entities = cluster_entities(all_entity_mentions)
-    propositions = cluster_propositions(all_proposition_mentions)
+    propositions = cluster_propositions(all_proposition_mentions, all_entity_mentions)
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
     return okr_info
 
@@ -376,7 +399,7 @@ if __name__ == "__main__":
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
     # coreference
     entities = cluster_entities(all_entity_mentions)
-    propositions = cluster_propositions(all_proposition_mentions)
+    propositions = cluster_propositions(all_proposition_mentions, all_entity_mentions)
     # consolidating info
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
 
