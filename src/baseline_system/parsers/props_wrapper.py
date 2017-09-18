@@ -79,6 +79,24 @@ class PropSWrapper:
             self.tok_ind_to_symbol[tok_ind] = symbol_generator()
         return self.tok_ind_to_symbol[tok_ind]
 
+    def get_entity_symbol(self, tok_ind):
+        """
+        Get a unique entity symbol.
+        Simplifies the call to get_element_symbol.
+        :param tok_ind - int, the token for which to obtain the symbol
+        """
+        return self.get_element_symbol(tok_ind,
+                                       self._gensym_ent)
+
+    def get_predicate_symbol(self, tok_ind):
+        """
+        Get a unique predicate symbol.
+        Simplifies the call to get_element_symbol.
+        :param tok_ind - int, the token for which to obtain the symbol
+        """
+        return self.get_element_symbol(tok_ind,
+                                       self._gensym_pred)
+
     def parse(self, sent):
         """
         Parse a raw sentence - shouldn't return a value, but properly change the internal status.
@@ -110,7 +128,47 @@ class PropSWrapper:
             self.parse_predicate(pred)
 
         # Split entities according to OKR notations
-#        self.entities = self._split_entities()
+        self.entities = self._split_entities()
+
+        # Add entity odifiers as implicit relations
+        self.add_modifiers_as_implicits()
+
+    def add_modifiers_as_implicits(self):
+        """
+        Add all exisiting entity modifiers as implicit relations
+        #TODO: Run in a closure, to make sure all levels of modification are covered
+        """
+        for ent in self.graph.nodes():
+            if self.get_node_ind(ent) in self.tok_ind_to_symbol:
+                if self.get_entity_symbol(self.get_node_ind(ent)) in self.entities:
+                    for modifier in [mod for
+                                     mod in self.get_props_neighbors(ent)
+                                     if (not mod.isPredicate) and (not mod.is_implicit())]:
+                        
+                        # Found a modifier: sort and add as implicit relation
+                        ordered_args = sorted([ent, modifier],
+                                              key = lambda node: self.get_node_ind(node))
+
+                        self.add_props_node_to_entities(modifier)
+
+                        imp_sym = self._gensym_pred()
+                        self.predicates[imp_sym] = self.create_implicit_proposition(\
+                                                    *[self.get_entity_symbol(self.get_node_ind(node))
+                                                      for node in ordered_args])
+
+    def add_props_node_to_entities(self, node):
+        """
+        Add the given props node to this instance's entity list
+        """
+        sym = self.get_entity_symbol(self.get_node_ind(node))
+        sorted_entity = sorted(set(node.str),
+                               key = lambda n: n.index)
+        self.entities[self.get_entity_symbol(self.get_node_ind(node))] = \
+                            (" ".join([w.word
+                                       for w in sorted_entity]),
+                             tuple([w.index - 1
+                                    for w in sorted_entity]))
+
 
     # A static symbol representing the string and
     # index associated with implicit predicates
@@ -262,7 +320,6 @@ class PropSWrapper:
         matching_dep_nodes = [node
                               for node in self.dep_tree
                               if node.id in [w.index for w in predicate_node.text]]
-        logging.debug("matching predicate node: {}".format(predicate_node))
 
         # Return the top most node in the dependency tree
         return min(matching_dep_nodes,
@@ -333,7 +390,6 @@ class PropSWrapper:
                                                                    for sameAs_neighbor in sameAs_neighbors
                                                                    for n
                                                                    in self.get_props_neighbors(sameAs_neighbor)])
-
 
     def parse_predicate(self, predicate_node):
         """
@@ -407,12 +463,9 @@ class PropSWrapper:
         for node in dep_entities:
             ent_symbol = self.get_element_symbol(self.get_node_ind(node),
                                                  self._gensym_ent)
-            try:
-                sorted_entity = sorted(set(node.original_text),
-                                       key = lambda n: n.index)
-            except:
-                sorted_entity = sorted(set(node.str),
-                                       key = lambda n: n.index)
+
+            sorted_entity = sorted(set(node.str),
+                                   key = lambda n: n.index)
 
             self.entities[ent_symbol] = (" ".join([w.word
                                                    for w in sorted_entity]),
