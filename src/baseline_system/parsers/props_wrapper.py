@@ -141,11 +141,13 @@ class PropSWrapper:
 
         # Iterate over entities and split where necessary
         for ent_head_symbol, (ent_str, ent_indices) in self.entities.iteritems():
+            cur_head_ind = ent_symbol_to_head_ind[ent_head_symbol]
+
             for word, ind in zip(ent_str.split(" "),
                                  ent_indices):
                 cur_dep_node = self.dep_tree[ind + 1]
 
-                if ind + 1 ==  ent_symbol_to_head_ind[ent_head_symbol]:
+                if ind + 1 ==  cur_head_ind:
                     # Replace this entity with its head
                     ret[ent_head_symbol] = (word, tuple([ind]))
                 else:
@@ -190,8 +192,12 @@ class PropSWrapper:
                         ret[new_ent_symbol] = (word, tuple([ind]))
 
                         # Then add an implicit relation
-                        self.predicates[self._gensym_pred()] = self.create_implicit_proposition(new_ent_symbol,
-                                                                                                ent_head_symbol)
+                        # Order by appearance in the sentence
+                        self.predicates[self._gensym_pred()] = \
+                                self.create_implicit_proposition(*map(itemgetter(0),
+                                                                      sorted([(new_ent_symbol, ind + 1),
+                                                                              (ent_head_symbol, cur_head_ind)],
+                                                                             key = itemgetter(1))))
         return ret
 
     def get_sentence(self):
