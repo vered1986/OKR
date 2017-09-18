@@ -26,6 +26,7 @@ for pack in os.listdir("src"):
 from parsers.props_wrapper import PropSWrapper
 from dict_utils import rename_attribute
 import okr
+import coreference
 
 props_wrapper = PropSWrapper(get_implicits=False,
                   get_zero_args=False,
@@ -89,19 +90,17 @@ def get_mention_lists(parsed_sentences):
 # step 4
 def cluster_entities(all_entity_mentions):
     """ Cluster entity-mentions to entities, Using baseline coreference functions.  """
-    import eval_entity_coref as entity_coref
-    from clustering_common import cluster_mentions
     """
     must cluster hashable items (uses set()) - thus giving only the unique id as first element.
     only second element (terms) is being used for clustering.
     """
     mentions_for_clustering = [ (mention_id, mention_info["terms"])
                                 for mention_id, mention_info in all_entity_mentions.iteritems()]
-    clusters = cluster_mentions(mentions_for_clustering, entity_coref.score)
+    clusters = coreference.cluster_entity_mentions(mentions_for_clustering)
     return clusters
 
 #step 5
-def cluster_propositions(all_proposition_mentions, all_entity_mentions):
+def cluster_propositions(all_proposition_mentions, all_entity_mentions, entities_clustering):
     """ Cluster proposition-mentions to propositions, Using baseline coreference functions.  """
     """
     for clustering, each mention is a (mention-unique-id, mention-head-lemma, mention-full-info) tuple.
@@ -132,9 +131,7 @@ def cluster_propositions(all_proposition_mentions, all_entity_mentions):
         mentions_for_clustering.append( (mention_id, head_lemma, mention_info) )
 
     # cluster the list of mentions to coreference chains
-    import eval_predicate_coref as predicate_coref
-    from clustering_common import cluster_mentions
-    clusters = cluster_mentions(mentions_for_clustering, predicate_coref.score)
+    clusters = coreference.cluster_proposition_mentions(mentions_for_clustering, entities_clustering)
     return clusters
 
 # helper function for step 6
@@ -373,7 +370,7 @@ def auto_pipeline_okr_info(sentences):
     parsed_sentences = parse_single_sentences(sentences)
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
     entities = cluster_entities(all_entity_mentions)
-    propositions = cluster_propositions(all_proposition_mentions, all_entity_mentions)
+    propositions = cluster_propositions(all_proposition_mentions, all_entity_mentions, entities)
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
     return okr_info
 
@@ -399,7 +396,7 @@ if __name__ == "__main__":
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
     # coreference
     entities = cluster_entities(all_entity_mentions)
-    propositions = cluster_propositions(all_proposition_mentions, all_entity_mentions)
+    propositions = cluster_propositions(all_proposition_mentions, all_entity_mentions, entities)
     # consolidating info
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
 
