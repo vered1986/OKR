@@ -18,6 +18,7 @@ from operator import itemgetter
 
 from props.applications.run import parseSentences, load_berkeley
 from props.graph_representation.graph_wrapper import ignore_labels
+from props.graph_representation.newNode import COPULA
 
 class PropSWrapper:
     """
@@ -109,7 +110,7 @@ class PropSWrapper:
             self.parse_predicate(pred)
 
         # Split entities according to OKR notations
-        self.entities = self._split_entities()
+#        self.entities = self._split_entities()
 
     # A static symbol representing the string and
     # index associated with implicit predicates
@@ -318,9 +319,20 @@ class PropSWrapper:
         Returns a flat list of neighbors.
         @param node - Props node.
         """
-        return [neighbor
-                for neighbors_list in node.neighbors().values()
-                for neighbor in neighbors_list]
+        all_neighbors =  [neighbor
+                          for neighbors_list in node.neighbors().values()
+                          for neighbor in neighbors_list]
+
+        # Extend neighbours across SameAs predicate
+        sameAs_neighbors = [neighbor
+                            for neighbor in all_neighbors
+                            if (neighbor.is_implicit()) and \
+                            (neighbor.text[0].word == COPULA)]
+
+        return (set(all_neighbors) - set(sameAs_neighbors)) | set([n
+                                                                   for sameAs_neighbor in sameAs_neighbors
+                                                                   for n
+                                                                   in self.get_props_neighbors(sameAs_neighbor)])
 
 
     def parse_predicate(self, predicate_node):
@@ -352,7 +364,8 @@ class PropSWrapper:
         ## Get entity arguments
         dep_entities = [node
                         for node in self.get_props_neighbors(predicate_node)
-                        if (node not in self.predicate_nodes)]
+                        if (node not in self.predicate_nodes) and\
+                        not (node.is_implicit())] # Include only explicit entities
 
         # Concat, sort, and get the words forming the template
         # Element placeholders appear with curly brackets, for replacement with format
