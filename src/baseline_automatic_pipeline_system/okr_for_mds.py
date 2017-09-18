@@ -196,7 +196,7 @@ if __name__ == "__main__":
     parsed_sentences = prs.parse_single_sentences(tweets_strings)
     all_entity_mentions, all_proposition_mentions = prs.get_mention_lists(parsed_sentences)
     entities = prs.cluster_entities(all_entity_mentions)
-    propositions = prs.cluster_propositions(all_proposition_mentions, all_entity_mentions)
+    propositions = prs.cluster_propositions(all_proposition_mentions, all_entity_mentions, entities)
     okr_info = prs.generate_okr_info(tweets_strings, all_entity_mentions, all_proposition_mentions, entities, propositions)
 
     okr_info["tweets"] = tweets     # tweets are aligned with mds requirements
