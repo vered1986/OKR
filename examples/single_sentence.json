@@ -1,9 +1,18 @@
-{"Predicates":
- {"<P2>": {"Bare predicate": "to land in",
-           "Template": "<A1> to land in <A2>"},
-  "<P1>": {"Bare predicate": "was forced",
-           "Template": "<A1> was forced <P2>"}},
- "Entities":
- {"<A1>": "The Syrian plane",
-  "<A2>": "Moscow"},
- "Sentence": "The Syrian plane was forced to land in Moscow ."}
+{'Entities': {'A1': ('plane', (2,)),
+  'A2': ('Moscow', (8,)),
+  'A3': ('Syrian', (1,))},
+ 'Predicates': {'P1': {'Arguments': ['A1', 'P2'],
+   'Bare predicate': ('was forced', (3, 4)),
+   'Head': {'Lemma': u'force', 'POS': 'VBN', 'Surface': ('forced', [4])},
+   'Template': '{A1} was forced {P2}'},
+  'P2': {'Arguments': ['A2', 'A1'],
+   'Bare predicate': ('to land in', (5, 6, 7)),
+   'Head': {'Lemma': 'land', 'POS': 'VB', 'Surface': ('land', [6])},
+   'Template': '{A1} to land in {A2}'},
+  'P3': {'Arguments': ('A3', 'A1'),
+   'Bare predicate': ('IMPLICIT', (-1,)),
+   'Head': {'Lemma': 'IMPLICIT', 'POS': 'IMPLICIT', 'Surface': 'IMPLICIT'},
+   'Template': '{A3} {A1}'}},
+ 'Sentence': 'The Syrian plane was forced to land in Moscow .'
+}
+
