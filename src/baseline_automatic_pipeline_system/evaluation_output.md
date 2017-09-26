@@ -19,3 +19,44 @@ Predicate mentions(F1): 0.218
 Entity mentions(F1): 0.171
 Predicate coreference: MUC=0.017, B^3=0.499, CEAF_C=0.147, MELA=0.221
 Entity coreference: MUC=0.036, B^3=0.493, CEAF_C=0.143, MELA=0.224
+
+
+-----------------------------------------------------------------------------
+Changes in predicate coreference algorithm:
+
+argument score - Using argument coreference information.
+lexical score - same lemmatized dependency head
+
+Evaluation output for the test set:
+
+Predicate mentions(F1): 0.238 (include implicit)
+Entity mentions(F1): 0.420
+Predicate coreference: MUC=0.155, B^3=0.602, CEAF_C=0.203, MELA=0.320
+Entity coreference: MUC=0.249, B^3=0.714, CEAF_C=0.303, MELA=0.422
+
+------------------------------------------------------------------------------
+Changes in predicate coreference algorithm:
+
+argument score - Using argument coreference information.
+lexical score - have some Wordnet overlap or pass fuzzy string matching (using all the words in the predicates)
+
+Evaluation output for the test set:
+
+Predicate mentions(F1): 0.238 (include implicit)
+Entity mentions(F1): 0.420
+Predicate coreference: MUC=0.133, B^3=0.528, CEAF_C=0.184, MELA=0.282
+Entity coreference: MUC=0.249, B^3=0.714, CEAF_C=0.303, MELA=0.422
+
+--------------------------------------------------------------------------------
+
+Changes in predicate coreference algorithm:
+
+argument score - Using argument coreference information.
+lexical score - have some Wordnet overlap or pass fuzzy string matching (using lemmatized dependency heads of predicates)
+
+Evaluation output for the test set:
+
+Predicate mentions(F1): 0.238 (include implicit)
+Entity mentions(F1): 0.420
+Predicate coreference: MUC=0.173, B^3=0.580, CEAF_C=0.185, MELA=0.313
+Entity coreference: MUC=0.249, B^3=0.714, CEAF_C=0.303, MELA=0.422

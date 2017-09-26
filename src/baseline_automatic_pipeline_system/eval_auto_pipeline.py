@@ -79,7 +79,7 @@ def eval_auto_pipeline(input_folder,gold_folder):
     predicate_mention_score = np.mean(predicate_mention_scores, axis=0).tolist()
     entity_mention_score = np.mean(entity_mention_scores, axis=0).tolist()
 
-    print 'Predicate mentions(F1): %.3f' % predicate_mention_score[0]
+    print 'Predicate mentions(F1) = %.3f Recall = %.3f Precision = %.3f  ' % (predicate_mention_score[0],predicate_mention_score[1],predicate_mention_score[2])
 
     print 'Entity mentions(F1): %.3f' % entity_mention_score[0]
 
