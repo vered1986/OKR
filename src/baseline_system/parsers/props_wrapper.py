@@ -18,6 +18,7 @@ from operator import itemgetter
 
 from props.applications.run import parseSentences, load_berkeley
 from props.graph_representation.graph_wrapper import ignore_labels
+from props.graph_representation.newNode import COPULA
 
 class PropSWrapper:
     """
@@ -78,6 +79,24 @@ class PropSWrapper:
             self.tok_ind_to_symbol[tok_ind] = symbol_generator()
         return self.tok_ind_to_symbol[tok_ind]
 
+    def get_entity_symbol(self, tok_ind):
+        """
+        Get a unique entity symbol.
+        Simplifies the call to get_element_symbol.
+        :param tok_ind - int, the token for which to obtain the symbol
+        """
+        return self.get_element_symbol(tok_ind,
+                                       self._gensym_ent)
+
+    def get_predicate_symbol(self, tok_ind):
+        """
+        Get a unique predicate symbol.
+        Simplifies the call to get_element_symbol.
+        :param tok_ind - int, the token for which to obtain the symbol
+        """
+        return self.get_element_symbol(tok_ind,
+                                       self._gensym_pred)
+
     def parse(self, sent):
         """
         Parse a raw sentence - shouldn't return a value, but properly change the internal status.
@@ -111,6 +130,46 @@ class PropSWrapper:
         # Split entities according to OKR notations
         self.entities = self._split_entities()
 
+        # Add entity odifiers as implicit relations
+        self.add_modifiers_as_implicits()
+
+    def add_modifiers_as_implicits(self):
+        """
+        Add all exisiting entity modifiers as implicit relations
+        #TODO: Run in a closure, to make sure all levels of modification are covered
+        """
+        for ent in self.graph.nodes():
+            if self.get_node_ind(ent) in self.tok_ind_to_symbol:
+                if self.get_entity_symbol(self.get_node_ind(ent)) in self.entities:
+                    for modifier in [mod for
+                                     mod in self.get_props_neighbors(ent)
+                                     if (not mod.isPredicate) and (not mod.is_implicit())]:
+                        
+                        # Found a modifier: sort and add as implicit relation
+                        ordered_args = sorted([ent, modifier],
+                                              key = lambda node: self.get_node_ind(node))
+
+                        self.add_props_node_to_entities(modifier)
+
+                        imp_sym = self._gensym_pred()
+                        self.predicates[imp_sym] = self.create_implicit_proposition(\
+                                                    *[self.get_entity_symbol(self.get_node_ind(node))
+                                                      for node in ordered_args])
+
+    def add_props_node_to_entities(self, node):
+        """
+        Add the given props node to this instance's entity list
+        """
+        sym = self.get_entity_symbol(self.get_node_ind(node))
+        sorted_entity = sorted(set(node.str),
+                               key = lambda n: n.index)
+        self.entities[self.get_entity_symbol(self.get_node_ind(node))] = \
+                            (" ".join([w.word
+                                       for w in sorted_entity]),
+                             tuple([w.index - 1
+                                    for w in sorted_entity]))
+
+
     # A static symbol representing the string and
     # index associated with implicit predicates
     IMPLICIT_SYMBOL = ("IMPLICIT", tuple([-1]))
@@ -120,7 +179,7 @@ class PropSWrapper:
         Returns an implicit proposition over the given argument symbols.
         """
         return {"Bare predicate": PropSWrapper.IMPLICIT_SYMBOL,
-                "Template": " ".join(arg_symbols), # The template ommits the symbol
+                "Template": " ".join(["{{{}}}".format(symbol) for symbol in arg_symbols]),
                 "Head":{
                     "Surface": PropSWrapper.IMPLICIT_SYMBOL[0],
                     "Lemma": PropSWrapper.IMPLICIT_SYMBOL[0],
@@ -141,11 +200,13 @@ class PropSWrapper:
 
         # Iterate over entities and split where necessary
         for ent_head_symbol, (ent_str, ent_indices) in self.entities.iteritems():
+            cur_head_ind = ent_symbol_to_head_ind[ent_head_symbol]
+
             for word, ind in zip(ent_str.split(" "),
                                  ent_indices):
                 cur_dep_node = self.dep_tree[ind + 1]
 
-                if ind + 1 ==  ent_symbol_to_head_ind[ent_head_symbol]:
+                if ind + 1 ==  cur_head_ind:
                     # Replace this entity with its head
                     ret[ent_head_symbol] = (word, tuple([ind]))
                 else:
@@ -158,8 +219,6 @@ class PropSWrapper:
                          (cur_dep_node.children[0].id - 1 in ent_indices):
                         # This is a preposition whose sole child is in this span
                         # -> Add the preposition as predicate
-                        logging.debug("found prep: {} {}".format(cur_dep_node.children[0].id - 1,
-                                                                 ent_indices))
                         prep_child = cur_dep_node.children[0]
                         prep_child_symbol = self.get_element_symbol(prep_child.id,
                                                                     self._gensym_ent)
@@ -171,9 +230,9 @@ class PropSWrapper:
 
                         self.predicates[prep_symbol] = {"Bare predicate": (word,
                                                                            tuple([ind])),
-                                                        "Template": " ".join([ent_head_symbol,
-                                                                              word,
-                                                                              prep_child_symbol]),
+                                                        "Template": "{{{}}} {} {{{}}}".format(ent_head_symbol,
+                                                                                              word,
+                                                                                              prep_child_symbol),
                                                         "Head":{
                                                             "Surface": word,
                                                             "Lemma": word,
@@ -192,8 +251,12 @@ class PropSWrapper:
                         ret[new_ent_symbol] = (word, tuple([ind]))
 
                         # Then add an implicit relation
-                        self.predicates[self._gensym_pred()] = self.create_implicit_proposition(new_ent_symbol,
-                                                                                                ent_head_symbol)
+                        # Order by appearance in the sentence
+                        self.predicates[self._gensym_pred()] = \
+                                self.create_implicit_proposition(*map(itemgetter(0),
+                                                                      sorted([(new_ent_symbol, ind + 1),
+                                                                              (ent_head_symbol, cur_head_ind)],
+                                                                             key = itemgetter(1))))
         return ret
 
     def get_sentence(self):
@@ -257,7 +320,6 @@ class PropSWrapper:
         matching_dep_nodes = [node
                               for node in self.dep_tree
                               if node.id in [w.index for w in predicate_node.text]]
-        logging.debug("matching predicate node: {}".format(predicate_node))
 
         # Return the top most node in the dependency tree
         return min(matching_dep_nodes,
@@ -314,10 +376,20 @@ class PropSWrapper:
         Returns a flat list of neighbors.
         @param node - Props node.
         """
-        return [neighbor
-                for neighbors_list in node.neighbors().values()
-                for neighbor in neighbors_list]
+        all_neighbors =  [neighbor
+                          for neighbors_list in node.neighbors().values()
+                          for neighbor in neighbors_list]
 
+        # Extend neighbours across SameAs predicate
+        sameAs_neighbors = [neighbor
+                            for neighbor in all_neighbors
+                            if (neighbor.is_implicit()) and \
+                            (neighbor.text[0].word == COPULA)]
+
+        return (set(all_neighbors) - set(sameAs_neighbors)) | set([n
+                                                                   for sameAs_neighbor in sameAs_neighbors
+                                                                   for n
+                                                                   in self.get_props_neighbors(sameAs_neighbor)])
 
     def parse_predicate(self, predicate_node):
         """
@@ -348,7 +420,8 @@ class PropSWrapper:
         ## Get entity arguments
         dep_entities = [node
                         for node in self.get_props_neighbors(predicate_node)
-                        if (node not in self.predicate_nodes)]
+                        if (node not in self.predicate_nodes) and\
+                        not (node.is_implicit())] # Include only explicit entities
 
         # Concat, sort, and get the words forming the template
         # Element placeholders appear with curly brackets, for replacement with format
@@ -390,12 +463,9 @@ class PropSWrapper:
         for node in dep_entities:
             ent_symbol = self.get_element_symbol(self.get_node_ind(node),
                                                  self._gensym_ent)
-            try:
-                sorted_entity = sorted(set(node.original_text),
-                                       key = lambda n: n.index)
-            except:
-                sorted_entity = sorted(set(node.str),
-                                       key = lambda n: n.index)
+
+            sorted_entity = sorted(set(node.str),
+                                   key = lambda n: n.index)
 
             self.entities[ent_symbol] = (" ".join([w.word
                                                    for w in sorted_entity]),
