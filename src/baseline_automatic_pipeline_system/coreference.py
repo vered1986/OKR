@@ -61,7 +61,6 @@ def predicate_score(prop, cluster, argument_clusters, lexical_wt, argument_match
         prop_terms = prop[1]
         lexical_matches = 0.0
         for other_prop in cluster:
-            implicit_mentions = 0.0
             if other_prop[1] != 'IMPLICIT':
                 if some_word_match(other_prop[1], prop_terms):
                     lexical_matches += 1
