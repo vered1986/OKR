@@ -6,6 +6,7 @@ Author: Shany Barhom (based on the code of Hitesh Golchha)
 import clustering_common
 import os
 import sys
+import logging
 
 for pack in os.listdir("src"):
     sys.path.append(os.path.join("src", pack))
@@ -23,7 +24,10 @@ def cluster_entity_mentions(mention_list):
 
 def cluster_proposition_mentions(mention_list, entities_clustering):
     """
-    Receives predicate mentions and entity clusters and perform predicate coreference resolution
+    Receives predicate mentions and entity clusters and perform predicate coreference resolution -
+    cluster the predicate mentions in a greedy way: assign each predicate to the first
+    cluster with similarity score > 0.5, the score is based on lexical similarity
+    and arguments similarity between proposition mentions.
     :param mention_list: the mentions to cluster
     :param entities_clustering: a clustering of entity-mentions to coreference chains. 
         format: list of lists of tuples, each tuple stands for an entity-mention - (mention-id, terms)
@@ -31,12 +35,10 @@ def cluster_proposition_mentions(mention_list, entities_clustering):
     """
     argument_clusters = []
     for cluster in entities_clustering:
-        clean_cluster = []
-        for mention_tuple in cluster:
-            clean_cluster.append(mention_tuple[0])
-        argument_clusters.append(clean_cluster)
+        ids_of_cluster = [mention_tuple[0] for mention_tuple in cluster]
+        argument_clusters.append(ids_of_cluster)
 
-    return cluster_prop_mentions(mention_list, predicate_score, argument_clusters, lexical_wt=0.75, argument_match_ratio=0.75)
+    return greedy_prop_clustring(mention_list, predicate_score, argument_clusters, lexical_wt=0.75, argument_match_ratio=0.75)
 
 
 def predicate_score(prop, cluster, argument_clusters, lexical_wt, argument_match_ratio):
@@ -54,22 +56,27 @@ def predicate_score(prop, cluster, argument_clusters, lexical_wt, argument_match
     """
 
     from eval_predicate_coref import some_word_match
-
+    implicit_mentions = 0.0
     if prop[1] != 'IMPLICIT':
         prop_terms = prop[1]
-        lexical_matches = 0
+        lexical_matches = 0.0
         for other_prop in cluster:
+            implicit_mentions = 0.0
             if other_prop[1] != 'IMPLICIT':
                 if some_word_match(other_prop[1], prop_terms):
                     lexical_matches += 1
+            else:
+                implicit_mentions += 1
 
-        lexical_score = lexical_matches / (1.0 * len(cluster))
-
+        explicit_mentions = 1.0 * (len(cluster) - implicit_mentions)
+        lexical_score = lexical_matches / explicit_mentions if explicit_mentions > 0 else 0.0
 
     else:
         lexical_score = 0
         lexical_wt = 0
 
+    # calculate the ratio of proposition mentions in the cluster who has at
+    # least argument_match_ratio percent of arguments corefer with the mention being compared.
     argument_score = len([other for other in cluster if
                             (some_arg_match(other[2], prop[2], argument_clusters, argument_match_ratio))]) / (
                         1.0 * len(cluster))
@@ -77,7 +84,7 @@ def predicate_score(prop, cluster, argument_clusters, lexical_wt, argument_match
     return lexical_wt * lexical_score + (1 - lexical_wt) * argument_score
 
 
-def cluster_prop_mentions(mention_list, score, argument_clusters, lexical_wt, argument_match_ratio):
+def greedy_prop_clustring(mention_list, score, argument_clusters, lexical_wt, argument_match_ratio):
     """
     Cluster the predicate mentions in a greedy way: assign each predicate to the first
     cluster with similarity score > 0.5. If no such cluster exists, start a new one.
@@ -112,20 +119,16 @@ def some_arg_match(prop_mention1_info, prop_mention2_info, argument_clusters, ar
     :param prop_mention1_info: First proposition mention
     :param prop_mention2_info: Second proposition mention
     :param argument_clusters: The clusters of arguments obtained by coreference
-    :param arg_match_ratio: criteria of argument overlap = no of aligned arguments / no of arguments(minimum of proposition1 and proposition2)
+    :param arg_match_ratio: criteria of argument overlap = number of aligned arguments / number of arguments(minimum of proposition1 and proposition2)
     :return: True if at least arg_match_ratio of arguments of two propositions are coreferent.
     """
 
-    matched_arguments = 0
-    prop_mention1_args = []
-    for arg_key,arg_data in prop_mention1_info['Arguments'].iteritems():
-        mention_id = arg_data['sentence_id'] +'_' + arg_key
-        prop_mention1_args.append(mention_id)
+    matched_arguments = 0.0
+    prop_mention1_args = [arg_data['sentence_id'] +'_' + arg_key for arg_key,arg_data in
+                          prop_mention1_info['Arguments'].iteritems()]
 
-    prop_mention2_args = []
-    for arg_key,arg_data in prop_mention2_info['Arguments'].iteritems():
-        mention_id = arg_data['sentence_id'] +'_' + arg_key
-        prop_mention2_args.append(mention_id)
+    prop_mention2_args = [arg_data['sentence_id'] +'_' + arg_key for arg_key,arg_data in
+                          prop_mention2_info['Arguments'].iteritems() ]
 
     for m_id1 in prop_mention1_args:
         pair_found = False
@@ -138,13 +141,12 @@ def some_arg_match(prop_mention1_info, prop_mention2_info, argument_clusters, ar
             if pair_found == True:
                 break
 
-    if (matched_arguments == 0):
+    if matched_arguments == 0:
         return False
-    elif (len(prop_mention1_args) + len(prop_mention2_args) - matched_arguments == 0):
-        print 'problem here:'
-        print 'Matched arguments: ', matched_arguments
-        print 'Number of arguments in the two propositions:', len(prop_mention1_args), ', ', len(
-            prop_mention2_args)
+    elif len(prop_mention1_args) + len(prop_mention2_args) - matched_arguments == 0:
+        logging.error('problem here:')
+        logging.error('Matched arguments: ' + str(matched_arguments))
+        logging.error('Number of arguments in the two propositions: {0}, {1}'.format( str(len(prop_mention1_args)), str(len(prop_mention2_args))))
 
         return False
 
