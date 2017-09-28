@@ -18,17 +18,22 @@ steps:
 
 import sys, logging, copy, os
 from docopt import docopt
+from collections import defaultdict
 # add all src sub-directories to path
 for pack in os.listdir("src"):
     sys.path.append(os.path.join("src", pack))
 
 from parsers.props_wrapper import PropSWrapper
+from dict_utils import rename_attribute
 import okr
+import coreference
 
 props_wrapper = PropSWrapper(get_implicits=False,
                   get_zero_args=False,
                   get_conj=False)
 
+def rename_attribute(dictionary, old_key_name, new_key_name):
+    dictionary[new_key_name] = dictionary.pop(old_key_name)
 
 # step 1 - meantime suppose its just a simple text file of line-separated sentences
 def get_raw_sentences_from_file(input_fn):
@@ -85,29 +90,48 @@ def get_mention_lists(parsed_sentences):
 # step 4
 def cluster_entities(all_entity_mentions):
     """ Cluster entity-mentions to entities, Using baseline coreference functions.  """
-    import eval_entity_coref as entity_coref
-    from clustering_common import cluster_mentions
     """
     must cluster hashable items (uses set()) - thus giving only the unique id as first element.
     only second element (terms) is being used for clustering.
     """
     mentions_for_clustering = [ (mention_id, mention_info["terms"])
                                 for mention_id, mention_info in all_entity_mentions.iteritems()]
-    clusters = cluster_mentions(mentions_for_clustering, entity_coref.score)
+    clusters = coreference.cluster_entity_mentions(mentions_for_clustering)
     return clusters
 
 #step 5
-def cluster_propositions(all_proposition_mentions):
+def cluster_propositions(all_proposition_mentions, all_entity_mentions, entities_clustering):
     """ Cluster proposition-mentions to propositions, Using baseline coreference functions.  """
-    import eval_predicate_coref as predicate_coref
-    from clustering_common import cluster_mentions
     """
-    must cluster hashable items (uses set()) - thus giving only the unique id as first element.
-    only second element (head-lemma) is being used for clustering.
+    for clustering, each mention is a (mention-unique-id, mention-head-lemma, mention-full-info) tuple.
+    mention-head-lemma is a string, and is given for backward compatibitly. 
+    mention-full-info is a dict containing all the info about the proposition-mention as given by props_wrapper,
+    with a modification of the "Arguments" field, which would be a dict mapping template-symbols (e.g. "A1" or "P2") 
+    to their mention records.
     """
-    mentions_for_clustering = [(mention_id, mention_info["Head"]["Lemma"],mention_info['Bare predicate'][0])
-                               for mention_id, mention_info in all_proposition_mentions.iteritems()]
-    clusters = cluster_mentions(mentions_for_clustering, predicate_coref.score)
+    # get all entities and propositions into all_concepts
+    all_concepts = all_proposition_mentions.copy()
+    all_concepts.update(all_entity_mentions)
+    # prepare mentions for clustering
+    mentions_for_clustering = []
+    for mention_id, mention_info in all_proposition_mentions.iteritems():
+        head_lemma = mention_info["Head"]["Lemma"]
+        """
+        get all relevant concepts - all concepts which their symbol's prefix is the sentence-id.
+        This is because the template is using the single-sentence symbol - Ai for entities ans Pi for propositions.
+        The mention id is of the form <sentence-id>_<single-sentence-symbol>
+        """
+        sentence_id = mention_info["sentence_id"]
+        relevent_concepts = { m_id.split("_")[1] : m_info
+                              for m_id, m_info in all_concepts.iteritems()
+                              if m_id.split("_")[0] == sentence_id }
+        # construct a mapping between template-symbols (e.g. "A1" or "P2") to their mention records
+        arguments_map = { arg : relevent_concepts[arg] for arg in mention_info["Arguments"] }
+        mention_info.update({"Arguments": arguments_map})
+        mentions_for_clustering.append( (mention_id, head_lemma, mention_info) )
+
+    # cluster the list of mentions to coreference chains
+    clusters = coreference.cluster_proposition_mentions(mentions_for_clustering, entities_clustering)
     return clusters
 
 # helper function for step 6
@@ -138,13 +162,20 @@ def generate_argument_mentions(prop_mention):
 #step 6
 def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions):
     """ Create okr_info dict (dict with all graph info) based on entity & proposition clustering.
-    - when generating the EntityMention & PropositionMention objects, maintain a global mapping 
+    1. when generating the EntityMention & PropositionMention objects, maintain a global mapping 
     between global_mention_id to mention-object. 
-    - at ArgumentMentions generation, use global-mention-IDs as parent-mention-id. don't assign parent-id.
+    2. at ArgumentMentions generation, use global-mention-IDs as parent-mention-id. don't assign parent-id.
         The Reason- the Proposition IDs are only created in this first traverse.
-    - as a second step, for each PropositionMention: 
+    3. as a following step, for each PropositionMention: 
         * traverse all ArgumentMentions, and replace parent-mention-id and parent-id through the global mapping.
         * modify the template - replace original single-sentence template by changing the single-sentence symbols to their cluster (Entity\Proposition) ID.
+    4. Argument Alignment - the alignment of arguments of different PropositionMentions (of same Proposition) should
+        be eventually expressed by their arg-id. However, In the generation of the argument mentions, such alignment 
+        does not exist; the alignment can be done only after each ArgumentMention is mapped to a concept (step 3. above).
+        Therefore, a subsequent step is required, in which:
+            4.a. first, do Argument Alignment - decide on Proposition-level argument-slots, that refer to a same role 
+                relative to the predicate. Map each argument-mention to an argument-slot.  
+            4.b. After that, iterate all ArgumentMentions and change their arg-id to their argument-slot symbol. 
     """
     okr_info = {}   # initialize all keyword arguments here for okr object initialization
     okr_info["name"] = "default_name"   #TODO how (or whether) should we decide this?
@@ -219,7 +250,7 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
                                                             terms=all_prop_terms,
                                                             entailment_graph=None)
 
-    # modify PropositionMention - parent_mention_id, parent_id, and template
+    # 3. modify PropositionMention - parent_mention_id, parent_id, and template
     for prop_id, prop in okr_info["propositions"].iteritems():
         for prop_mention_id, prop_mention in prop.mentions.iteritems():
             # modify arguments
@@ -233,7 +264,100 @@ def generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, 
                 sent_id, symbol = mention_global_id.split("_")
                 prop_mention.template = prop_mention.template.replace("{"+symbol+"}", "{"+argument_mention.parent_id+"}")
 
+    # 4. Argument Alignment step
+    for prop_id, prop in okr_info["propositions"].iteritems():
+        argument_slots_grouping = argument_alignment(prop.mentions)
+        replace_arg_mentions_to_arg_slots(prop.mentions, argument_slots_grouping)
+
     return okr_info
+
+def replace_arg_mentions_to_arg_slots(mentions, slots_grouping):
+    """ Transform arg-identifiers (in arg-dicts and templates) to use aligned arguments (slots). 
+    The new arguments symbols ("slots") are representing a semantic role relative to the predicate. 
+    one slot may refer to multiple concepts across various proposition-mentions. 
+    The mapping process between original argument values (which are concepts - known Entity\Proposition)
+    to the new "consolidated" arguments slots is called Argument Alignment. 
+    :param mentions: a dict { prop_mention_id : PropositionMention } of the Proposition
+    :param slots_grouping: list of lists, a grouping of (prop-mention-id, arg-mention-id) to arguments slots. 
+    """
+    # mapping from (prop_mention_id, arg_mention_id) to a symbol of (proposition-level) argument-slot
+    ids_to_slot = { arg_ids : str(slot_index)
+                    for slot_index, slot_group in enumerate(slots_grouping, start=1)
+                    for arg_ids in slot_group }
+
+    for prop_mention_id, prop_mention in mentions.iteritems():
+        modified_template = prop_mention.template
+        # iterate all args and replace old symbol (concept_id) with new symbol (slot)
+        for arg_id, arg in prop_mention.argument_mentions.iteritems():
+            concept_id = arg.parent_id
+            slot = ids_to_slot[(prop_mention_id, arg_id)]
+            # modify template to use argument-slot instead of concept-id
+            modified_template = modified_template.replace("{"+concept_id+"}", "{"+slot+"}")
+            # remove traces of pseudo-concept-id, which are there only for handling duplication
+            arg.parent_id = concept_id.split("_")[0]
+            # change arg-id to argument-slot
+            arg.id = slot
+        # replace arg_dict from {original-arg-id : arg} to {argument-slot : arg}
+        new_arg_dict = {arg.id : arg for arg in prop_mention.argument_mentions.values()}
+        prop_mention.argument_mentions = new_arg_dict
+
+        # TODO decide how to replace the template args symbols to slots. verify mds-output regarding.
+        # replace existing template (that uses concept-ids) with modified template (that uses argument-slots)
+        prop_mention.template = modified_template
+
+
+def argument_alignment(prop_mentions):
+    """
+    Group the arguments-mentions of a Proposition, to different argument-slots. 
+    different argument-slots are representing different semantic roles relative to the predicate. 
+    :return: list of lists, a grouping of (prop-mention-id, arg-mention-id) to arguments slots. 
+    """
+
+    # Currently, the argument alignment is simply grouping the argument referring to same concept.
+    concepts = set( [arg_mention.parent_id
+                     for prop_mention in prop_mentions.values()
+                     for arg_mention in prop_mention.argument_mentions.values() ] )
+
+    concept_to_slot_index = { concept : index for index, concept in enumerate(concepts) }
+    number_of_slots = len(concept_to_slot_index)
+    grouping = defaultdict(list)
+    for prop_mention_id, prop_mention in prop_mentions.iteritems():
+        # save the concepts encountered in this prop-mention (to find duplications)
+        encountered_concepts = []
+        for arg_mention_id, arg_mention in prop_mention.argument_mentions.iteritems():
+            referred_concept = arg_mention.parent_id
+            """
+            Special treatment for cases where a template is containing two arguments referring to the same concept.
+            This case, both arg-mentions will be aligned to same argument-slot. This is Problematic (and forbidden),
+            since by definition, different argument-slots refer to different semantic roles, so an argument-slot cannot
+            occur twice in a template.
+            """
+            if referred_concept in encountered_concepts:
+                # duplication - special (new) slot necessary for arg
+                grouping[number_of_slots].append( (prop_mention_id, arg_mention_id) )
+                number_of_slots += 1    # increment number_of_slots to index a new slot
+                """
+                change the argument's concept-id at the mention's template - 
+                to differentiate between the occurrences of the same concept-id in the template, we must
+                change the concept-id used for the arg to an "pseudo-id". This way, we could map the args 
+                to different slots.
+                """
+                pseudo_id = referred_concept + "_a." + str(number_of_slots)
+                prop_mention.template = prop_mention.template.replace("{"+referred_concept+"}",
+                                                                            "{"+pseudo_id+"}",
+                                                                            1)  # replace only first occurrence
+                arg_mention.parent_id = pseudo_id
+
+                logging.info("duplication handled: mention {} of prop {}, concept repeating is {}".format(
+                             prop_mention_id, prop_mention.parent, referred_concept))
+            else:
+                # no duplications - append this arg-mention to the slot corresponding to referred concept
+                encountered_concepts.append(referred_concept)
+                slot_index = concept_to_slot_index[referred_concept]
+                grouping[slot_index].append( (prop_mention_id, arg_mention_id) )
+
+    return grouping.values()
+
 
 # all together (after parsing input files)
 def auto_pipeline_okr_info(sentences):
@@ -246,7 +370,7 @@ def auto_pipeline_okr_info(sentences):
     parsed_sentences = parse_single_sentences(sentences)
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
     entities = cluster_entities(all_entity_mentions)
-    propositions = cluster_propositions(all_proposition_mentions)
+    propositions = cluster_propositions(all_proposition_mentions, all_entity_mentions, entities)
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
     return okr_info
 
@@ -272,7 +396,7 @@ if __name__ == "__main__":
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
     # coreference
     entities = cluster_entities(all_entity_mentions)
-    propositions = cluster_propositions(all_proposition_mentions)
+    propositions = cluster_propositions(all_proposition_mentions, all_entity_mentions, entities)
     # consolidating info
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
 

@@ -26,6 +26,8 @@ from collections import defaultdict
 for pack in os.listdir("src"):
     sys.path.append(os.path.join("src", pack))
 
+from dict_utils import clean_dict, rename_attribute
+
 def get_tweets_from_files(tweets_fn, metadata_fn):
     """ Get tweets information from two input files.
     @:returns: a dict { tweet-id : tweet-info }.
@@ -71,17 +73,6 @@ def class_object_to_json_convertable(obj):
         return class_object_to_json_convertable(obj.__dict__)
 
 
-def clean_dict(dictionary, desired_attributes):
-    """ Remove all attributes of dictionary beside those in desired_attributes. """
-    remove_list = (att for att in dictionary.keys() if att not in desired_attributes)
-    for att in remove_list:
-        del dictionary[att]
-
-
-def rename_attribute(dictionary, old_key_name, new_key_name):
-    dictionary[new_key_name] = dictionary.pop(old_key_name)
-
-
 def unify_mentions(mentions_dict):
     """ Unify mentions with same term. 
     return list of [ {"term": <term>, "sources": [source-tweet-ids] ]. 
@@ -96,59 +87,6 @@ def unify_mentions(mentions_dict):
             for term in unique_terms ]
 
 
-def argument_alignment(prop_mentions):
-    """
-    Group the arguments-mentions of a Proposition, to different argument-slots. 
-    different argument-slots are representing different semantic roles relative to the predicate. 
-    :return: list of lists, a grouping of (prop-mention-id, arg-mention-id) to arguments slots. 
-    """
-
-    # Currently, the argument alignment is simply grouping the argument referring to same concept.
-    concepts = set( [arg_mention["parent_id"]
-                     for prop_mention in prop_mentions.values()
-                     for arg_mention in prop_mention["argument_mentions"].values() ] )
-
-    concept_to_slot_index = { concept : index for index, concept in enumerate(concepts) }
-    number_of_slots = len(concept_to_slot_index)
-    grouping = defaultdict(list)
-    for prop_mention_id, prop_mention in prop_mentions.iteritems():
-        # save the concepts encountered in this prop-mention (to find duplications)
-        encountered_concepts = []
-        for arg_mention_id, arg_mention in prop_mention["argument_mentions"].iteritems():
-            referred_concept = arg_mention["parent_id"]
-            """
-            Special treatment for cases where a template is containing two arguments referring to the same concept.
-            This case, both arg-mentions will be aligned to same argument-slot. This is Problematic (and forbidden),
-            since by definition, different argument-slots refer to different semantic roles, so an argument-slot cannot
-            occur twice in a template.
-            """
-            if referred_concept in encountered_concepts:
-                # duplication - special (new) slot necessary for arg
-                grouping[number_of_slots].append( (prop_mention_id, arg_mention_id) )
-                number_of_slots += 1    # increment number_of_slots to index a new slot
-                """
-                change the argument's concept-id at the mention's template - 
-                to differentiate between the occurrences of the same concept-id in the template, we must
-                change the concept-id used for the arg to an "pseudo-id". This way, we could map the args 
-                to different slots.
-                """
-                pseudo_id = referred_concept + "_a." + str(number_of_slots)
-                prop_mention["template"] = prop_mention["template"].replace("{"+referred_concept+"}",
-                                                                            "{"+pseudo_id+"}",
-                                                                            1)  # replace only first occurrence
-                arg_mention["parent_id"] = pseudo_id
-
-                logging.info("duplication handled: mention {} of prop {}, concept repeating is {}".format(
-                             prop_mention_id, prop_mention["parent"], referred_concept))
-            else:
-                # no duplications - append this arg-mention to the slot corresponding to referred concept
-                encountered_concepts.append(referred_concept)
-                slot_index = concept_to_slot_index[referred_concept]
-                grouping[slot_index].append( (prop_mention_id, arg_mention_id) )
-
-    return grouping.values()
-
-
 def prepare_proposition_predicates_and_arguments(mentions):
     """
     Prepare the proposition data to mds export (for a single Proposition).
@@ -161,49 +99,35 @@ def prepare_proposition_predicates_and_arguments(mentions):
     The mapping process  between original argument values (which are concepts - known Entity\Proposition)
     to the new "consolidated" arguments slots is called Argument Alignment. 
     """
-
-    argument_slots_grouping = argument_alignment(mentions)
-    # mapping from (prop_mention_id, arg_mention_id) to a symbol of (proposition-level) argument-slot
-    ids_to_slot = { arg_ids : "a." + str(slot_index)
-                    for slot_index, slot_group in enumerate(argument_slots_grouping, start=1)
-                    for arg_ids in slot_group }
-
-    templates = {m_id : m["template"] for m_id, m in mentions.iteritems()}
-    # transform templates - replace concept-id with general (proposition-level) argument-slot
-    modified_templates = set()
+    # TODO - modify according to change in parse_okr_info
+    templates = {mention_id : mention["template"] for mention_id, mention in mentions.iteritems()}
     sources_of_template = defaultdict(list) # a mapping from modified-template to a list of source tweet-ids
     # data-structures for the "arguments" json attribute:
-    # a mapping from argument-slot (symbol) to a set of all concepts that take this slot
+    # a mapping from argument-slot (=arg-id) to a set of all concepts that take this slot
     slot_to_concept = defaultdict(set)
     # a mapping from (slot, concept-id) to list of sources of prop-mentions in which the concept is the value of the slot
     slot_concept_to_sources = defaultdict(list)
     for prop_mention_id, template in templates.iteritems():
         prop_mention = mentions[prop_mention_id]
-        modified_template = template
         # iterate all args and replace old symbol (concept_id) with new symbol (slot)
         for arg_id, arg in prop_mention["argument_mentions"].iteritems():
             concept_id = arg["parent_id"]
-            slot = ids_to_slot[(prop_mention_id, arg_id)]
-            modified_template = modified_template.replace("{"+concept_id+"}", "{"+slot+"}")
-            # remove traces of pseudo-concept-id, which are there only for handling duplication
-            arg["parent_id"] = concept_id = concept_id.split("_")[0]
+            slot = arg_id
             # maintain mapping of slot-concept relation
             slot_to_concept[slot].add(concept_id)
-            # maintain sources slot-concept relation
+            # maintain sources of slot-concept relation
             slot_concept_to_sources[(slot, concept_id)].append(prop_mention["sentence_id"])
-        # add new template to set
-        modified_templates.add(modified_template)
         # add this prop-mention's tweet-id to sources of this modified_template
-        sources_of_template[modified_template].append(mentions[prop_mention_id]["sentence_id"])
+        sources_of_template[template].append(mentions[prop_mention_id]["sentence_id"])
 
     # prepare "predicates" attribute for schema format
-    templates_att = [ {"template": new_template,
-                      "sources": sources_of_template[new_template] }
-                     for new_template in modified_templates]
+    templates_att = [ {"template": template,
+                      "sources": sources_of_template[template] }
+                     for template in templates.values()]
     predicates_att = {"templates": templates_att}
 
     # prepare "arguments" attribute for schema format
-    slots = set(ids_to_slot.values())
+    slots = set(slot_to_concept.keys())
     arguments_att = []
     for slot in slots:
         argument_json_object = {}
@@ -213,10 +137,11 @@ def prepare_proposition_predicates_and_arguments(mentions):
                                           for concept in slot_to_concept[slot]]
         # TODO improve labeling of aligned arguments
         # baseline: take label of a random argument-mention
-        ids_of_corresponding_argument_mentions = [arg_ids for arg_ids, s in ids_to_slot.items() if s==slot]
-        representative_argument_mention_ids = ids_of_corresponding_argument_mentions[0]
-        rep_mention_id, rep_arg_id = representative_argument_mention_ids
-        representative_argument_mention = mentions[rep_mention_id]["argument_mentions"][rep_arg_id]
+        relevant_arg_mentions = [ arg_mention
+                                  for prop_mention in mentions.values()
+                                  for arg_id, arg_mention in prop_mention["argument_mentions"].iteritems()
+                                  if arg_id == slot]
+        representative_argument_mention = relevant_arg_mentions[0]
         argument_json_object["label"] = representative_argument_mention["desc"]
 
         # add this argument value (=concept) to list of this slot
@@ -271,7 +196,7 @@ if __name__ == "__main__":
     parsed_sentences = prs.parse_single_sentences(tweets_strings)
     all_entity_mentions, all_proposition_mentions = prs.get_mention_lists(parsed_sentences)
     entities = prs.cluster_entities(all_entity_mentions)
-    propositions = prs.cluster_propositions(all_proposition_mentions)
+    propositions = prs.cluster_propositions(all_proposition_mentions, all_entity_mentions, entities)
     okr_info = prs.generate_okr_info(tweets_strings, all_entity_mentions, all_proposition_mentions, entities, propositions)
 
     okr_info["tweets"] = tweets     # tweets are aligned with mds requirements
