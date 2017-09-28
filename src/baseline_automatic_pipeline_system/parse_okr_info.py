@@ -116,6 +116,9 @@ def cluster_propositions(all_proposition_mentions, all_entity_mentions, entities
     mentions_for_clustering = []
     for mention_id, mention_info in all_proposition_mentions.iteritems():
         head_lemma = mention_info["Head"]["Lemma"]
+        # case no lemma was extracted for head (lemma is empty) - use head surface
+        if not head_lemma:
+            head_lemma = mention_info["Head"]["Surface"][0]
         """
         get all relevant concepts - all concepts which their symbol's prefix is the sentence-id.
         This is because the template is using the single-sentence symbol - Ai for entities ans Pi for propositions.
@@ -401,7 +404,7 @@ if __name__ == "__main__":
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
 
     # using copy because OKR CTor changes the template of PropositionMentions of propositions attribute
-    okr_v1 = okr.OKR(**copy.deepcopy(okr_info))
+    okr_v1 = okr.OKR(prepare_templates=False, **copy.deepcopy(okr_info))
 
     # log eventual results
     ## did we cluster any mentions?
