@@ -404,7 +404,7 @@ if __name__ == "__main__":
     okr_info = generate_okr_info(sentences, all_entity_mentions, all_proposition_mentions, entities, propositions)
 
     # using copy because OKR CTor changes the template of PropositionMentions of propositions attribute
-    okr_v1 = okr.OKR(**copy.deepcopy(okr_info))
+    okr_v1 = okr.OKR(prepare_templates=False, **copy.deepcopy(okr_info))
 
     # log eventual results
     ## did we cluster any mentions?

@@ -15,7 +15,7 @@ class OKR:
     """
     A class for the OKR graph structure
     """
-    def __init__(self, name, sentences, ignored_indices, tweet_ids, entities, propositions):
+    def __init__(self, name, sentences, ignored_indices, tweet_ids, entities, propositions, prepare_templates=True):
 
         self.name = name  # XML file name
         self.sentences = sentences  # Dictionary of sentence ID (starts from 1) to tokenized sentence
@@ -32,8 +32,9 @@ class OKR:
 
         # Set template for predicate mentions and use it to create mention entailment graph
         for p_id, prop in self.propositions.iteritems():
-            for m_id, prop_mention in prop.mentions.iteritems():
-                set_template(prop_mention, self.entities, self.propositions)
+            if prepare_templates:
+                for m_id, prop_mention in prop.mentions.iteritems():
+                    set_template(prop_mention, self.entities, self.propositions)
 
             # create mention entailment graph (if entailment_graph given)
             if prop.entailment_graph:
