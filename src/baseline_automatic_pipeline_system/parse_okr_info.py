@@ -57,7 +57,7 @@ def parse_single_sentences(raw_sentences):
             props_wrapper.parse(sent)
             parsed_sentences[sent_id] = props_wrapper.get_okr()
         except Exception as e:
-            logging.error("failed to parse sentence: " + sent)
+            logging.error("failed to parse sentence: " + sent +" | Error: " + str(e))
 
     return parsed_sentences
 
