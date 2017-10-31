@@ -365,7 +365,11 @@ class PropSWrapper:
         """
         try:
             # First, try to treat this node as a PropS node
-            return min([w.index for w in node.text])
+            if node.isPredicate:
+                return min([w.index for w in node.text])
+            # for entities (nouns), take last word as head
+            else:
+                return max([w.index for w in node.text])
 
         except:
             # If fails, assume it's a dep node
