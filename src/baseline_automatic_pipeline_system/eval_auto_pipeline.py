@@ -91,7 +91,7 @@ def eval_auto_pipeline(input_folder,gold_folder):
 
     print 'Predicate mentions(F1) = %.3f Recall = %.3f Precision = %.3f  ' % (predicate_mention_score[0],predicate_mention_score[1],predicate_mention_score[2])
 
-    print 'Entity mentions(F1): %.3f' % entity_mention_score[0]
+    print 'Entity mentions(F1): %.3f Recall = %.3f Precision = %.3f' % tuple(entity_mention_score[:3])
 
     pred_muc, pred_b_cube, pred_ceaf_c, pred_mela = predicate_scores
     print 'Predicate coreference: MUC=%.3f, B^3=%.3f, CEAF_C=%.3f, MELA=%.3f' % \
