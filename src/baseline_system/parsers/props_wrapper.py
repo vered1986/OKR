@@ -42,6 +42,8 @@ class PropSWrapper:
         self.get_zero_args = get_zero_args
         self.get_conj = get_conj
         load_berkeley(tokenize = False)
+        import spacy
+        self.spacy = spacy.load('en')
 
     def _init_internal_state(self):
         """
@@ -143,7 +145,9 @@ class PropSWrapper:
                 if self.get_entity_symbol(self.get_node_ind(ent)) in self.entities:
                     for modifier in [mod for
                                      mod in self.get_props_neighbors(ent)
-                                     if (not mod.isPredicate) and (not mod.is_implicit())]:
+                                     if (not mod.isPredicate)
+                                     and (not mod.is_implicit())
+                                     and (not self.get_node_ind(mod)-1 in self._all_NEs_token_indices)]:
                         
                         # Found a modifier: sort and add as implicit relation
                         ordered_args = sorted([ent, modifier],
@@ -188,6 +192,15 @@ class PropSWrapper:
                 "Arguments": arg_symbols
             }
 
+    # retrieve spacy's named entities, only those with relevant label
+    def _get_named_entities(self):
+        relevant_labels = ["PERSON", "NORP", "FACILITY", "ORG", "GPE", "LOC",
+                           "PRODUCT", "EVENT", "WORK_OF_ART", "LANGUAGE",
+                           "DATE", "TIME", "QUANTITY", "MONEY"]
+        doc = self.spacy(unicode(self.sentence))
+        self._named_entities = [ent for ent in doc.ents if ent.label_ in relevant_labels]
+        return self._named_entities
+
     def _split_entities(self):
         """
         After getting longer PropS entities composed of NPs - further split
@@ -198,18 +211,57 @@ class PropSWrapper:
         # Get mapping from all symbol to the word index of their head
         ent_symbol_to_head_ind = dict([(v, k) for (k, v) in self.tok_ind_to_symbol.iteritems()])
 
+        # Get Named-Entities from spacy, prepare helper data-structures for integrating them into entities
+        self._get_named_entities()
+        NEs_to_insert = set(self._get_named_entities())   # a "yet-to-insert" list, for not creating the same NE twice
+        # a function for getting the range of indices of a spacy's Named-Entity
+        NE_to_indices = lambda named_entity: tuple(range(named_entity.start, named_entity.end))
+
+        NE_root_ind_to_ent = {ent.root.i : ent for ent in self._named_entities}
+        self._all_NEs_token_indices = [ind
+                                 for ent in self._named_entities
+                                 for ind in NE_to_indices(ent) ]
+        tok_ind_to_NE = {ind : ent
+                         for ent in self._named_entities
+                         for ind in NE_to_indices(ent)}
+
+        # a function for creating an output-entity out of spacy's Named Entity
+        NE_to_entity = lambda named_entity: (str(named_entity.text),
+                                             NE_to_indices(named_entity))
+
         # Iterate over entities and split where necessary
         for ent_head_symbol, (ent_str, ent_indices) in self.entities.iteritems():
             cur_head_ind = ent_symbol_to_head_ind[ent_head_symbol]
 
+            # if head of entity is contained within a named-entity
+            if cur_head_ind-1 in self._all_NEs_token_indices:
+                # Replace this entity with the recognized named-entity containing it
+                named_entity = tok_ind_to_NE[cur_head_ind-1]
+                ret[ent_head_symbol] = NE_to_entity(named_entity)
+                NEs_to_insert.discard(named_entity)
+
+            # Iterate all tokens in entity
             for word, ind in zip(ent_str.split(" "),
                                  ent_indices):
                 cur_dep_node = self.dep_tree[ind + 1]
 
-                if ind + 1 ==  cur_head_ind:
+                if ind + 1 ==  cur_head_ind and ent_head_symbol not in ret: # if already inserted as NE, don't override
                     # Replace this entity with its head
                     ret[ent_head_symbol] = (word, tuple([ind]))
                 else:
+                    # if the word is the root of an NE, and that NE was not yet inserted as entity
+                    if ind in NE_root_ind_to_ent and NE_root_ind_to_ent[ind] in NEs_to_insert:
+                        # define new entity (with new symbol), remove NE from to-insert list
+                        NE_ent_symbol = self.get_element_symbol(ind + 1,
+                                                                self._gensym_ent)
+                        named_entity = NE_root_ind_to_ent[ind]
+                        ret[NE_ent_symbol] = NE_to_entity(named_entity)
+                        NEs_to_insert.discard(named_entity)
+                        continue
+                    # if the word is contained within a named-entity - skip it
+                    if ind in self._all_NEs_token_indices:
+                        continue
+
                     if  (cur_dep_node.parent_relation in ['det']):
                         # Dont include determiners or prepositions
                         continue
