@@ -334,6 +334,18 @@ def argument_alignment(prop_mentions):
             This case, both arg-mentions will be aligned to same argument-slot. This is Problematic (and forbidden),
             since by definition, different argument-slots refer to different semantic roles, so an argument-slot cannot
             occur twice in a template.
+            
+            First, handling intra-signle-sentence duplication; where the original template of the mention 
+            contains duplicated reference to same concept-mention (note this is before coreference). 
+            nothing else to do except erase the duplicated argument.
+            """
+            count_occurrences = prop_mention.template.count("{"+referred_concept+"}")
+            if count_occurrences>1:
+                # erase all of this-concept symbols except for the last
+                prop_mention.template = prop_mention.template.replace("{"+referred_concept+"} ", "", count_occurrences-1)
+
+            """
+            Now handling inter-sentence duplication, caused by consolidation:
             """
             if referred_concept in encountered_concepts:
                 # duplication - special (new) slot necessary for arg
