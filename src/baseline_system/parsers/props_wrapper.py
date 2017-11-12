@@ -541,7 +541,7 @@ if __name__ == "__main__":
         # Interactive shell
         logging.info("Input a raw sentence. Press enter to finish each sentence.")
         while True:
-            sent = raw_input("> ").strip()
+            sent = raw_input("(props) > ").strip()
 
             # 2. Parse sentence
             pw.parse(sent)
