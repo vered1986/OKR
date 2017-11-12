@@ -539,7 +539,7 @@ if __name__ == "__main__":
 
     else:
         # Interactive shell
-        logging.info("Input a raw sentences. Press enter to finish each sentence.")
+        logging.info("Input a raw sentence. Press enter to finish each sentence.")
         while True:
             sent = raw_input("> ").strip()
 
