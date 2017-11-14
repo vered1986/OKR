@@ -1,11 +1,12 @@
 """ Usage:
-   props_wrapper --in=INPUT_FILE --out=OUTPUT_FILE
+   props_wrapper [--in=INPUT_FILE] [--out=OUTPUT_FILE]
 
 Author: Gabi Stanovsky
 
     Abstraction over the PropS parser.
     If ran with the interactive flag also starts a shell expecting raw sentences.
     Parses sentences from input file (not tokenized), and writes an output json to the output file.
+    Run without parmeters to get an interactive shell.
 """
 
 import logging
@@ -514,22 +515,40 @@ if __name__ == "__main__":
                       get_zero_args = False,
                       get_conj = False)
 
-    okrs = []
-    for line in open(input_fn):
-        sent = line.strip()
 
-        if not sent or sent.startswith('#'):
-            # Ignore commented lines
-            continue
+    if (input_fn is not None) and (output_fn is not None):
+        okrs = []
+        for line in open(input_fn):
+            sent = line.strip()
 
-        # 2. Parse sentence
-        pw.parse(sent)
+            if not sent or sent.startswith('#'):
+                # Ignore commented lines
+                continue
 
-        # 3. Get OKR Json object
-        okr = pw.get_okr()
-        okrs.append(okr)
-        logging.info(pformat(okr))
+            # 2. Parse sentence
+            pw.parse(sent)
 
-    # Dump json
-    with open(output_fn, 'w') as fout:
-        json.dump(okrs, fout)
+            # 3. Get OKR Json object
+            okr = pw.get_okr()
+            okrs.append(okr)
+            logging.info(pformat(okr))
+
+        # Dump json
+        with open(output_fn, 'w') as fout:
+            json.dump(okrs, fout)
+
+    else:
+        # Interactive shell
+        logging.info("Input a raw sentence. Press enter to finish each sentence.")
+        while True:
+            sent = raw_input("(props) > ").strip()
+
+            # 2. Parse sentence
+            pw.parse(sent)
+
+            # 3. Get OKR Json object
+            okr = pw.get_okr()
+
+            # Print to user
+            logging.info(pformat(okr))
+
