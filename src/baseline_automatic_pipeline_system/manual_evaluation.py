@@ -16,20 +16,20 @@ def get_all_prop_mentions_terms_from_okr(okr_graph):
                             for prop in okr_graph.propositions.values()]))
 
 def get_all_prop_mentions_from_okr(okr_graph):
-    return [mention for prop in okr_graph.propositions.values() for mention in prop.mentions.values() ]
+    return sorted([mention for prop in okr_graph.propositions.values() for mention in prop.mentions.values() ],
+                  key=lambda m:int(m.sentence_id))
 
 def terms_of_prop_mention(prop_mention, okr_graph):
     if prop_mention.is_explicit:
-        return prop_mention.terms
+        return prop_mention.template
     else:
         rr = lambda arg: argument_mention_repr(arg, okr_graph)
         return '|'.join([rr(arg) for arg in prop_mention.argument_mentions.values()])
 
-def implicit_percentage(all_proposition_mentions):
-    if type(all_proposition_mentions) is dict:
-        all_proposition_mentions = all_proposition_mentions.values()
+def implicit_percentage(okr_v1):
+    all_proposition_mentions = get_all_prop_mentions_from_okr(okr_v1)
     all_mentions = len(all_proposition_mentions)
-    implicits = len([m for m in all_proposition_mentions if m["Head"]["Lemma"] == "IMPLICIT"])
+    implicits = len([m for m in all_proposition_mentions if not m.is_explicit])
     return float(implicits) / all_mentions
 
 
@@ -102,4 +102,32 @@ def present_gold(gold, sentences):
         mm = [m for m in gold_mentions if str(m.sentence_id)==str(sent)]
         for m in mm:
             print sent, sentences[sent], "\t#", m.template, "|", terms_of_prop_mention(m, gold), str(m)
+
+def present_implicits(okr_v1, sentences):
+    for m in get_all_prop_mentions_from_okr(okr_v1):
+        if m.is_explicit or str(m.sentence_id) not in sentences:
+            continue
+        sent_id=str(m.sentence_id)
+        print sent_id, sentences[sent_id], "#\n  Terms:",terms_of_prop_mention(m, okr_v1)
+
+def present_explicits(okr_v1, sentences):
+    for m in get_all_prop_mentions_from_okr(okr_v1):
+        if not m.is_explicit or str(m.sentence_id) not in sentences:
+            continue
+        sent_id=str(m.sentence_id)
+        print sent_id, sentences[sent_id], "#\n  Terms:",terms_of_prop_mention(m, okr_v1), "  Template: ", m.template
+
+def get_all_props_of_sentence(graph, sent_id):
+    return [m for m in get_all_prop_mentions_from_okr(graph) if m.sentence_id==sent_id ]
+
+def nesting_props(graph, sentences):
+    mentions = get_all_prop_mentions_from_okr(graph)
+    for m in mentions:
+        prop_args = [a for a in m.argument_mentions.values() if a.mention_type==1]
+        orig_arg_mentions = [graph.propositions[a.parent_id].mentions[a.parent_mention_id] for a in prop_args]
+        if prop_args:
+            for arg in orig_arg_mentions:
+                print m.sentence_id, sentences[str(m.sentence_id)]
+                print terms_of_prop_mention(m, graph) + " ; " + terms_of_prop_mention(arg, graph)
+                print "\n"
 
