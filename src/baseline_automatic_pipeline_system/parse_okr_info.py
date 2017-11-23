@@ -335,7 +335,7 @@ def argument_alignment(prop_mentions):
             since by definition, different argument-slots refer to different semantic roles, so an argument-slot cannot
             occur twice in a template.
             
-            First, handling intra-signle-sentence duplication; where the original template of the mention 
+            First, handling intra-single-sentence duplication; where the original template of the mention 
             contains duplicated reference to same concept-mention (note this is before coreference). 
             nothing else to do except erase the duplicated argument.
             """
