@@ -117,6 +117,9 @@ class PropSWrapper:
         # Get the tokenized sentence
         self.sentence = self.get_sentence()
 
+        # Resolve Named Entities using spaCy
+        self._resolve_named_entities()
+
         # Populate entities and predicates
         self.parse_okr()
 
@@ -193,12 +196,14 @@ class PropSWrapper:
             }
 
     # retrieve spacy's named entities, only those with relevant label
-    def _get_named_entities(self):
+    def _resolve_named_entities(self):
         relevant_labels = ["PERSON", "NORP", "FACILITY", "ORG", "GPE", "LOC",
                            "PRODUCT", "EVENT", "WORK_OF_ART", "LANGUAGE",
                            "DATE", "TIME", "QUANTITY", "MONEY"]
         doc = self.spacy(unicode(self.sentence))
         self._named_entities = [ent for ent in doc.ents if ent.label_ in relevant_labels]
+
+    def get_named_entities(self):
         return self._named_entities
 
     def _split_entities(self):
@@ -211,9 +216,8 @@ class PropSWrapper:
         # Get mapping from all symbol to the word index of their head
         ent_symbol_to_head_ind = dict([(v, k) for (k, v) in self.tok_ind_to_symbol.iteritems()])
 
-        # Get Named-Entities from spacy, prepare helper data-structures for integrating them into entities
-        self._get_named_entities()
-        NEs_to_insert = set(self._get_named_entities())   # a "yet-to-insert" list, for not creating the same NE twice
+        # Get resolved Named-Entities, prepare helper data-structures for integrating them into entities
+        NEs_to_insert = set(self.get_named_entities())   # a "yet-to-insert" list, for not creating the same NE twice
         # a function for getting the range of indices of a spacy's Named-Entity
         NE_to_indices = lambda named_entity: tuple(range(named_entity.start, named_entity.end))
 
