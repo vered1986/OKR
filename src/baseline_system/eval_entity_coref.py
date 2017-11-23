@@ -18,7 +18,7 @@ from okr import *
 from munkres import *
 from entity_coref import *
 from fuzzywuzzy import fuzz
-from spacy.en import English
+from spacy.lang.en import English
 from num2words import num2words
 from nltk.corpus import wordnet as wn
 from clustering_common import cluster_mentions,cluster_mentions_with_max_cluster
@@ -27,7 +27,7 @@ from clustering_common import cluster_mentions,cluster_mentions_with_max_cluster
 nlp = spacy.load('en')
 
 def is_stop(w):
-	return w in spacy.en.STOP_WORDS
+	return w in spacy.lang.en.STOP_WORDS
 
 
 def replace_tokenizer(nlp):

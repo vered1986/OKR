@@ -1,7 +1,7 @@
 import re
 import bsddb
 
-from spacy.en import English
+from spacy.lang.en import English
 
 
 """

@@ -6,7 +6,7 @@ Author: Gabi Stanovsky
 
 import logging
 
-from spacy.en import English
+from spacy.lang.en import English
 from spacy.tokens import Span
 from collections import defaultdict
 

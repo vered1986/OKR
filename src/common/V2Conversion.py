@@ -4,7 +4,7 @@ import itertools
 sys.path.append('../common')
 import spacy
 import numpy as np
-from spacy.en import English
+from spacy.lang.en import English
 import re
 nlp = English()
 def replace_tokenizer(nlp):
