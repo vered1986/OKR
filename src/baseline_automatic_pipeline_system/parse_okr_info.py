@@ -341,6 +341,8 @@ def argument_alignment(prop_mentions):
             """
             count_occurrences = prop_mention.template.count("{"+referred_concept+"}")
             if count_occurrences>1:
+                logging.warning("intra-sentence duplication handled for sentence {}, mention {} of prop {}".format(
+                                prop_mention.sentence_id, prop_mention_id, prop_mention.parent))
                 # erase all of this-concept symbols except for the last
                 prop_mention.template = prop_mention.template.replace("{"+referred_concept+"} ", "", count_occurrences-1)
 
