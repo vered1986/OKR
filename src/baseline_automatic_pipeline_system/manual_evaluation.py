@@ -12,14 +12,17 @@ import pickle
 
 
 def get_all_prop_mentions_terms_from_okr(okr_graph):
+    """ Return a unified list of all prop-mentions terms in the graph. """
     return list(set.union(*[set(map(lambda pm:terms_of_prop_mention(pm, okr_graph), prop.mentions.values()))
                             for prop in okr_graph.propositions.values()]))
 
 def get_all_prop_mentions_from_okr(okr_graph):
+    """ Return all PropositionMentions in the graph. """
     return sorted([mention for prop in okr_graph.propositions.values() for mention in prop.mentions.values() ],
                   key=lambda m:int(m.sentence_id))
 
 def terms_of_prop_mention(prop_mention, okr_graph):
+    """ Return a representation of terms of prop-mention - template for explicit, concatenated args for implicit. """
     if prop_mention.is_explicit:
         return prop_mention.template
     else:
@@ -27,24 +30,11 @@ def terms_of_prop_mention(prop_mention, okr_graph):
         return '|'.join([rr(arg) for arg in prop_mention.argument_mentions.values()])
 
 def implicit_percentage(okr_v1):
+    """ return #num-of-implicit-prop-mention / #num-of-prop-mentions. """
     all_proposition_mentions = get_all_prop_mentions_from_okr(okr_v1)
     all_mentions = len(all_proposition_mentions)
     implicits = len([m for m in all_proposition_mentions if not m.is_explicit])
     return float(implicits) / all_mentions
-
-
-def concept_repr(concept):
-    if "terms" in concept:
-        return concept["terms"]
-    elif 'Bare predicate' in concept:
-        return concept['Bare predicate'][0]
-    else:
-        return "??"
-
-
-def view_prop_clusters_terms(propositions):
-    for p in propositions:
-        print [m[1] for m in p]
 
 
 def view_prop_clusters_full(propositions):
@@ -52,6 +42,15 @@ def view_prop_clusters_full(propositions):
     :param propositions: clustering - list of lists 
     :return: list of lists of textual representation of each prop mention
     """
+
+    def concept_repr(concept):
+        if "terms" in concept:
+            return concept["terms"]
+        elif 'Bare predicate' in concept:
+            return concept['Bare predicate'][0]
+        else:
+            return "??"
+
     props = []
     for p in propositions:
         full_prop_cluster = []
@@ -67,6 +66,7 @@ def view_prop_clusters_full(propositions):
 
 # on okr_v1 object
 def argument_mention_repr(argumentMention, okr_v1):
+    """ Return terms (str) of argument mention (retrieve from parent EntityMention or PropositionMention) """
     if argumentMention.mention_type == 0:   # arg is entity
         parent_mention = okr_v1.entities[argumentMention.parent_id].mentions[argumentMention.parent_mention_id]
     else:
@@ -75,6 +75,7 @@ def argument_mention_repr(argumentMention, okr_v1):
 
 
 def view_okr_prop_clusters(okr_v1):
+    """ print and return a textual representation of the clustering, based on OKR object """
     props = []
     for pid,p in okr_v1.propositions.iteritems():
         full_prop_cluster = []
@@ -87,7 +88,8 @@ def view_okr_prop_clusters(okr_v1):
         print ";\t".join(full_prop_cluster)
     return props
 
-def present_prop_extraction(pred, gold):    # okr_v1 objects
+def view_and_compare_prop_extraction(pred, gold):    # okr_v1 objects
+    """ print a comparison of predicted and gold proposition-mentions extraction"""
     gold_mentions = get_all_prop_mentions_from_okr(gold)
     pred_mentions = get_all_prop_mentions_from_okr(pred)
     sentences = set([m.sentence_id for m in gold_mentions])
@@ -96,21 +98,17 @@ def present_prop_extraction(pred, gold):    # okr_v1 objects
         pred_sent_prop_terms = [terms_of_prop_mention(m, pred) for m in pred_mentions if m.sentence_id == str(sent)]
         print sent, gold_sent_prop_terms, pred_sent_prop_terms
 
-def present_gold(gold, sentences):
-    gold_mentions = get_all_prop_mentions_from_okr(gold)
-    for sent in sorted(sentences.keys()):
-        mm = [m for m in gold_mentions if str(m.sentence_id)==str(sent)]
-        for m in mm:
-            print sent, sentences[sent], "\t#", m.template, "|", terms_of_prop_mention(m, gold), str(m)
 
-def present_implicits(okr_v1, sentences):
+def view_implicits(okr_v1, sentences):
+    """ print all implicit proposition mentions in graph. """
     for m in get_all_prop_mentions_from_okr(okr_v1):
         if m.is_explicit or str(m.sentence_id) not in sentences:
             continue
         sent_id=str(m.sentence_id)
         print sent_id, sentences[sent_id], "#\n  Terms:",terms_of_prop_mention(m, okr_v1)
 
-def present_explicits(okr_v1, sentences):
+def view_explicits(okr_v1, sentences):
+    """ print all explicit proposition mentions in graph. """
     for m in get_all_prop_mentions_from_okr(okr_v1):
         if not m.is_explicit or str(m.sentence_id) not in sentences:
             continue
@@ -118,9 +116,11 @@ def present_explicits(okr_v1, sentences):
         print sent_id, sentences[sent_id], "#\n  Terms:",terms_of_prop_mention(m, okr_v1), "  Template: ", m.template
 
 def get_all_props_of_sentence(graph, sent_id):
+    """ return al proposition-mentions of a certain sentence. """
     return [m for m in get_all_prop_mentions_from_okr(graph) if m.sentence_id==sent_id ]
 
-def nesting_props(graph, sentences):
+def view_nesting_props(graph, sentences):
+    """ Print all nesting proposition mentions - prop-mentions that one of their argument is a proposition"""
     mentions = get_all_prop_mentions_from_okr(graph)
     for m in mentions:
         prop_args = [a for a in m.argument_mentions.values() if a.mention_type==1]
