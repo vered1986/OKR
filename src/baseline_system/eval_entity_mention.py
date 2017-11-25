@@ -12,7 +12,7 @@ sys.path.append('../common')
 import numpy as np
 
 from okr import *
-from spacy.en import English
+from spacy.lang.en import English
 from nltk.corpus import wordnet as wn
 
 NOUNS = [u'NNP', u'NN', u'NNS', u'NNPS', u'CD', u'PRP', u'PRP$']

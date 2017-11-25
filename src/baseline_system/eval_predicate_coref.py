@@ -24,7 +24,7 @@ import datetime
 import spacy
 from munkres import *
 from fuzzywuzzy import fuzz
-from spacy.en import English
+from spacy.lang.en import English
 from num2words import num2words
 from nltk.corpus import wordnet as wn
 

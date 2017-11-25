@@ -1,3 +1,14 @@
+
+Up-To-Date results (23.11.17):
+Evaluation output for the test set:
+
+Predicate mentions(F1) = 0.321 Recall = 0.265 Precision = 0.418
+Entity mentions(F1): 0.448 Recall = 0.420 Precision = 0.494
+Predicate coreference: MUC=0.197, B^3=0.622, CEAF_C=0.180, MELA=0.333
+Entity coreference: MUC=0.173, B^3=0.614, CEAF_C=0.300, MELA=0.362
+
+
+-----------------------------------------------------------------------------
 Evaluation output for the development set:
 
 Predicate mentions(F1): 0.221

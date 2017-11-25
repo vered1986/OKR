@@ -57,11 +57,21 @@ def eval_auto_pipeline(input_folder,gold_folder):
 
     for input_file,gold_file in zip(sorted_input,sorted_gold):
         print 'Evaluate input file '+ input_file + ' with gold file ' + gold_file
-        sentences = get_raw_sentences_from_file(os.path.join(input_folder, input_file))
+        gold_graph = load_graph_from_file(os.path.join(gold_folder, gold_file))
+        # for prediction, take only sentences occurring in the gold (in propositions or entities
+        annotated_sentences = set([str(m.sentence_id)
+                                   for prop in gold_graph.propositions.values()
+                                   for m in prop.mentions.values()] +
+                                  [str(m.sentence_id)
+                                   for entity in gold_graph.entities.values()
+                                   for m in entity.mentions.values()])
+
+        predicted_sentences = get_raw_sentences_from_file(os.path.join(input_folder, input_file))
+        sentences = {sentence_id : sentence
+                     for sentence_id, sentence in predicted_sentences.iteritems()
+                     if sentence_id in annotated_sentences}
         okr_info = auto_pipeline_okr_info(sentences)
         predicted_graph = OKR(**copy.deepcopy(okr_info))
-
-        gold_graph = load_graph_from_file(os.path.join(gold_folder, gold_file))
 
         # Evaluate
         pred_mention_score = evaluate_predicate_mention_between_two_graphs(predicted_graph,gold_graph)
@@ -81,7 +91,7 @@ def eval_auto_pipeline(input_folder,gold_folder):
 
     print 'Predicate mentions(F1) = %.3f Recall = %.3f Precision = %.3f  ' % (predicate_mention_score[0],predicate_mention_score[1],predicate_mention_score[2])
 
-    print 'Entity mentions(F1): %.3f' % entity_mention_score[0]
+    print 'Entity mentions(F1): %.3f Recall = %.3f Precision = %.3f' % tuple(entity_mention_score[:3])
 
     pred_muc, pred_b_cube, pred_ceaf_c, pred_mela = predicate_scores
     print 'Predicate coreference: MUC=%.3f, B^3=%.3f, CEAF_C=%.3f, MELA=%.3f' % \

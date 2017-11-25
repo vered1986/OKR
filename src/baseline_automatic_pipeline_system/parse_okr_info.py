@@ -57,7 +57,7 @@ def parse_single_sentences(raw_sentences):
             props_wrapper.parse(sent)
             parsed_sentences[sent_id] = props_wrapper.get_okr()
         except Exception as e:
-            logging.error("failed to parse sentence: " + sent)
+            logging.error("failed to parse sentence: " + sent +" | Error: " + str(e))
 
     return parsed_sentences
 
@@ -334,6 +334,20 @@ def argument_alignment(prop_mentions):
             This case, both arg-mentions will be aligned to same argument-slot. This is Problematic (and forbidden),
             since by definition, different argument-slots refer to different semantic roles, so an argument-slot cannot
             occur twice in a template.
+            
+            First, handling intra-single-sentence duplication; where the original template of the mention 
+            contains duplicated reference to same concept-mention (note this is before coreference). 
+            nothing else to do except erase the duplicated argument.
+            """
+            count_occurrences = prop_mention.template.count("{"+referred_concept+"}")
+            if count_occurrences>1:
+                logging.warning("intra-sentence duplication handled for sentence {}, mention {} of prop {}".format(
+                                prop_mention.sentence_id, prop_mention_id, prop_mention.parent))
+                # erase all of this-concept symbols except for the last
+                prop_mention.template = prop_mention.template.replace("{"+referred_concept+"} ", "", count_occurrences-1)
+
+            """
+            Now handling inter-sentence duplication, caused by consolidation:
             """
             if referred_concept in encountered_concepts:
                 # duplication - special (new) slot necessary for arg
