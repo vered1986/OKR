@@ -51,8 +51,13 @@ def parse_single_sentences(raw_sentences):
     """ Return a dict of { sentence_id : parsed single-sentence representation } . uses props as parser.
     @:arg raw_sentences: a { sentence_id : raw_sentence } dict. 
     """
+    # pre-task - tweet normalization and cleanup
+    import tweet_normalization
+    normed_sentences = tweet_normalization.normalize_tweets(raw_sentences, ignore=False)
+
+    # parse each tweet and store entity and proposition extractions
     parsed_sentences = {}
-    for sent_id, sent in raw_sentences.iteritems():
+    for sent_id, sent in normed_sentences.iteritems():
         try:
             props_wrapper.parse(sent)
             parsed_sentences[sent_id] = props_wrapper.get_okr()
