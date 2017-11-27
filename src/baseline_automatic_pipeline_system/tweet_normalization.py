@@ -18,6 +18,7 @@ def normalize_tweets(tweets, ignore=False):
         # remove noisy characters and patterns
         text = remove_characters(text, ["'", "~"])
         text = remove_urls(text)
+        text = remove_brackets(text)
 
         # validate end of sentence - remove noisy traces and make sure the sentence is added with a period (or '?'\'!')
         text = remove_signatures(text)
@@ -30,6 +31,9 @@ def normalize_tweets(tweets, ignore=False):
 def remove_characters(text, chars_to_remove):
     return re.sub('['+str(chars_to_remove)+']', '', text)
 
+def remove_brackets(text):
+    """ Remove everything within brackets or parentheses. """
+    return re.sub(r"[\(\[].*?[\)\]]", "", text)
 
 def remove_signatures(text):
     #define signs for a signature (stating the author of the tweet, not part of the grammatical sentence)
@@ -45,13 +49,8 @@ def validate_ending(text):
     Remove noisy last-characters and make sure sentence will end with period (or "?" or "!") 
     """
     # remove noisy last-characters
-    while True:
-        text = ' '.strip()
-        noisy_traces = [":", ";", "-", ",", "#"] # chars that we want to remove if occurring at the end of the sentence
-        if text[-1] in noisy_traces:
-            text = text[:-1]    # remove last char
-        else:
-            break
+    noisy_traces = [":", ";", "-", ",", "#", " ", "\t"] # chars that we want to remove if occurring at the end of the sentence
+    text = text.strip(''.join(noisy_traces))
     # set last character as period
     if text[-1] not in [".", "?", "!"]:
         text += "."
