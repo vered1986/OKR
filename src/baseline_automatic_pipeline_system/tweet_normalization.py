@@ -36,7 +36,8 @@ def remove_signatures(text):
     signature_signs = ["|", " - "]
     # remove signatures
     for sign in signature_signs:
-        text = sign.join(text.split(sign)[:-1]) # remove last chunk starting from sign
+        if sign in text:
+            text = sign.join(text.split(sign)[:-1]) # remove last chunk starting from sign
     return text
 
 def validate_ending(text):
