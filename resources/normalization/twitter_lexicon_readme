@@ -1,0 +1,64 @@
+The first part is taken from (until line 41181):
+------------------------------------------------
+RESOURCE: English Social Media Normalisation Lexicon
+
+VERSION: 1.0
+
+LAST UPDATE: Jul 12, 2012
+
+DESCRIPTION: (As requested by many researchers in EMNLP poster session, we will update the lexicon with context/string similarity scores.)
+This is the dataset used for lexical normalisation described in: Automatically Constructing a Normalisation Dictionary for Microblogs
+
+The dictionary contains about 40K (lexical variant, normalisation) pairs mined from 80 million English tweets from September 2010 to January 2011. Each line in the dictionary file is an entry (OOV and IV separated by '\t'). All pairs are in lower case.
+For instance:
+fundation   foundation
+discribed   described
+screaminq   screaming
+...
+
+Note the lexicon is automatically generated without any post-processing, and may therefore contain errors.
+
+If you have powerful computing facilities, we recommend you to derive your own lexicon using more data with the optimised parameters as specified in the paper. We expect the quality and quantity of the lexicon can be further improved. As for the development data, you can use this lexicon as a sliver standard.
+
+LICENSE:
+This dataset is made available under the terms of the Creative Commons Attribution 3.0 Unported licence (http://creativecommons.org/licenses/by/3.0/), with attribution via citation of the following paper:
+
+@InProceedings{han-cook-baldwin:2012:EMNLP-CoNLL,
+  author    = {Han, Bo  and  Cook, Paul  and  Baldwin, Timothy},
+  title     = {Automatically Constructing a Normalisation Dictionary for Microblogs},
+  booktitle = {Proceedings of the 2012 Joint Conference on Empirical Methods in Natural Language Processing and Computational Natural Language Learning},
+  month     = {July},
+  year      = {2012},
+  address   = {Jeju Island, Korea},
+  publisher = {Association for Computational Linguistics},
+  pages     = {421--432},
+  url       = {http://www.aclweb.org/anthology/D12-1039}
+}
+
+
+DISCLAIMER:
+The dataset may contain offensive messages. They do not necessarily represent the views, policies or opinions of the authors or The University of Melbourne. The distribution of this data in no way indicates claim of ownership over the original data.
+
+
+ACKNOWLEDGEMENTS:
+We would like to thank Stephan Gouws for kindly sharing his data and discussing his work.
+We also thank Fei Liu, Stephen Roller and anonymous reviewers for insightful suggestions and discussions.
+
+
+CONTACTS:
+Any comments or suggestions on the dataset are appreciated:
+
+  Bo HAN (hanb@student.unimelb.edu.au) 
+  Paul Cook (paulcook@unimelb.edu.au)
+  Tim Baldwin (tb@ldwin.net)
+
+  
+  
+The second part is taken from:
+------------------------------
+
+http://www.hlt.utdallas.edu/~yangl/data/Text_Norm_Data_Release_Fei_Liu/Test_Set_3802_Pairs.txt
+
+
+
+See: https://noisy-text.github.io/norm-shared-task.html for more info
