@@ -21,6 +21,11 @@ def get_all_prop_mentions_from_okr(okr_graph):
     return sorted([mention for prop in okr_graph.propositions.values() for mention in prop.mentions.values() ],
                   key=lambda m:int(m.sentence_id))
 
+def get_all_entity_mentions_from_okr(okr_graph):
+    """ Return all EntityMentions in the graph. """
+    return sorted([mention for ent in okr_graph.entities.values() for mention in ent.mentions.values() ],
+                  key=lambda m:int(m.sentence_id))
+
 def terms_of_prop_mention(prop_mention, okr_graph):
     """ Return a representation of terms of prop-mention - template for explicit, concatenated args for implicit. """
     if prop_mention.is_explicit:
@@ -119,6 +124,10 @@ def get_all_props_of_sentence(graph, sent_id):
     """ return al proposition-mentions of a certain sentence. """
     return [m for m in get_all_prop_mentions_from_okr(graph) if m.sentence_id==sent_id ]
 
+def get_all_entities_of_sentence(graph, sent_id):
+    """ return al entity-mentions of a certain sentence. """
+    return [m for m in get_all_entity_mentions_from_okr(graph) if m.sentence_id==sent_id ]
+
 def view_nesting_props(graph, sentences):
     """ Print all nesting proposition mentions - prop-mentions that one of their argument is a proposition"""
     mentions = get_all_prop_mentions_from_okr(graph)
@@ -131,3 +140,14 @@ def view_nesting_props(graph, sentences):
                 print terms_of_prop_mention(m, graph) + " ; " + terms_of_prop_mention(arg, graph)
                 print "\n"
 
+def find_in_sentences(graph, string_to_find):
+    """ return a list with IDs of all sentence in which string_to_find occur """
+    return [id for id, sent in graph.sentences.iteritems() if string_to_find in ' '.join(sent)]
+
+def single_sentence_extraction(gold_graph, sentent_id):
+    """ return a representation of Entity and Proposition extraction of a sentence from a gold graph """
+    prop_mentions = get_all_props_of_sentence(gold_graph, sentent_id)
+    entity_mentions = get_all_entities_of_sentence(gold_graph, sentent_id)
+    return {"Propositions" : [terms_of_prop_mention(m, gold_graph) for m in prop_mentions],
+            "Entities" : [m.terms for m in entity_mentions],
+            "Sentence" : ' '.join(gold_graph.sentences[sentent_id])}
