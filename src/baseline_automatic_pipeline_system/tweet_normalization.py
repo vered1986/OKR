@@ -4,6 +4,12 @@ Tweets are often not suitable for automatic parsers, for technical reasons as up
 """
 import re
 import sys
+import os
+
+# add all src sub-directories to path
+for pack in os.listdir('..'):
+    sys.path.append(os.path.join('..', pack))
+import word_formation_predictor
 
 # characters to remove from the tweets:
 chars_to_remove = ['>', '<', "~"]
@@ -29,6 +35,8 @@ def normalize_tweets(tweets, ignore=False):
             normed_tweets[tweet_id] = ''
             continue
 
+        # TODO: Get rid of retweets (with RT?)
+
         # remove unneeded prefixes and suffixes:
         text = remove_unneeded_prefixes(text)
         text = remove_unneeded_suffixes(text)
@@ -44,8 +52,6 @@ def normalize_tweets(tweets, ignore=False):
         text = split_connected_words(text)
         text = replace_words_by_lexicon(text, twitterLexicon)
 
-        # TODO: reformat to correct casing (use most frequent casing throughout all sentences)
-
         # validate end of sentence - remove noisy traces and make sure the sentence is added with a period (or '?'\'!')
         text = strip_characters(text, chars_to_strip)
         text = validate_ending(text)
@@ -53,7 +59,21 @@ def normalize_tweets(tweets, ignore=False):
         # add normalized tweet to output dict
         normed_tweets[tweet_id] = text
 
+    # replace words with correct capitalization:
+    wordFormPredict = word_formation_predictor.WordFormationPredictor(normed_tweets)
+    #wordReplacements = count_word_formations(normed_tweets)
+    for tweet_id, text in normed_tweets.iteritems():
+        #text = fix_words_capitalizations(text, wordReplacements)
+        newText = wordFormPredict.predictSentenceWordFormations(text)
+        normed_tweets[tweet_id] = newText
+
+        #print(tweets[tweet_id])
+        #print(text)
+        #print(newText)
+        #print('---')
+
     return normed_tweets
+
 
 def remove_characters(text, chars_to_remove):
     # for the regex, given a list of characters, put a '\' before each one, and separate them by a '|':
@@ -230,7 +250,7 @@ def replace_words_by_lexicon(text, lexicon):
 def isDottedAcronym(word):
     '''
     Is the given word a dotted acronym such as "u.s.", "i.e.", etc.
-    :param word:
+    :param wordwordCounts:
     :return:
     '''
     # get all the acronyms that have dots (ignore one letter and dot):
@@ -267,9 +287,11 @@ def split_connected_word(word):
     matches = re.finditer('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[.!?:;,])(?=[A-Z]|[a-z])|$)', word)
     newWordsList = [m.group(0) for m in matches]
     newText = ' '.join(newWordsList)
+    # TODO: Put a perios between the split words? Many times when words are connected, there is a sentence split there.
     #if word != newText:
     #    print(word + '\n' + newText + '\n\n')
     return newText
+
 
 '''
 For testing. Pass in a text file with sentences (line by line).
