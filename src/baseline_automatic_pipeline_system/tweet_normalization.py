@@ -4,11 +4,15 @@ Tweets are often not suitable for automatic parsers, for technical reasons as up
 """
 import re
 import sys
+import os
+
+# add all src sub-directories to path
+for pack in os.listdir('..'):
+    sys.path.append(os.path.join('..', pack))
+import word_formation_predictor
 
 # characters to remove from the tweets:
-chars_to_remove = ['"', "~"]
-# string to remove from the tweets:
-emoji = [":-)",":)",":-]",":]",":-3",":3",":->",":>","8-)","8)",":-}",":}",":o)",":c)",":^)","=]","=)",":-D",":D","8-D","8D","x-D","xD","X-D","XD","=D","=3","B^D",":-))",":-(",":(",":-c",":c",":-<",":<",":-[",":[",":-||",">:[",":{",":@",">:(",":'-(",":'(",":'-)",":')",":-O",":O",":-o",":o",":-0","8-0",">:O",":-*",":*",";-)",";)","*-)","*)",";-]",";]",";^)",":-,",";D",":-P",":P",":-/",":/",":-.",">:\\",">:/",":\\","=/","=\\",":L","=L",":S",":-|",":|",":-X",":X","<3"]
+chars_to_remove = ['>', '<', "~"]
 # characters to strip from the end of the tweet:
 chars_to_strip = [' ','\t','\r','\n','-','_','|',':',';','~','>','<','+','*']
 
@@ -19,7 +23,11 @@ def normalize_tweets(tweets, ignore=False):
     :param ignore: whether to ignore (i.e. erase) especially "noisy" tweets
     :return: a {tweet_id, normalized_tweet_text} dict
     """
+
     normed_tweets = {}
+    twitterLexicon = get_twitter_lexicon()
+    emojiList = get_twitter_emoji()
+
     for tweet_id, text in tweets.iteritems():
 
         # ignore tweets ending with an ellipsis since this is likely a cutoff tweet:
@@ -27,21 +35,22 @@ def normalize_tweets(tweets, ignore=False):
             normed_tweets[tweet_id] = ''
             continue
 
+        # TODO: Get rid of retweets (with RT?)
+
         # remove unneeded prefixes and suffixes:
         text = remove_unneeded_prefixes(text)
         text = remove_unneeded_suffixes(text)
 
         # remove noisy characters and patterns
         text = clean_hashtags(text)
+        text = remove_urls(text)
         text = replace_expanded_characters(text)
         text = remove_characters(text, chars_to_remove)
-        text = replace_strings(text, [(emoticon, '. ') for emoticon in emoji])
-        text = replace_strings(text, [('... ', '. '), ('...', '. '), ('.. ', '. '), ('..', '. '), ('   ', ' '), ('  ', ' '), (' -- ', ', ')])
-        text = remove_urls(text)
+        text = replace_strings(text, [(emoticon, '. ') for emoticon in emojiList])
+        text = replace_strings(text, [('... ', '. '), ('...', '. '), ('.. ', '. '), ('..', '. '), (' -- ', ', ')])
         text = remove_brackets(text)
-
-        # TODO: put space if missing (e.g. "Hi there!This is missing a space")
-        # TODO: reformat to correct casing
+        text = split_connected_words(text)
+        text = replace_words_by_lexicon(text, twitterLexicon)
 
         # validate end of sentence - remove noisy traces and make sure the sentence is added with a period (or '?'\'!')
         text = strip_characters(text, chars_to_strip)
@@ -50,7 +59,21 @@ def normalize_tweets(tweets, ignore=False):
         # add normalized tweet to output dict
         normed_tweets[tweet_id] = text
 
+    # replace words with correct capitalization:
+    wordFormPredict = word_formation_predictor.WordFormationPredictor(normed_tweets)
+    #wordReplacements = count_word_formations(normed_tweets)
+    for tweet_id, text in normed_tweets.iteritems():
+        #text = fix_words_capitalizations(text, wordReplacements)
+        newText = wordFormPredict.predictSentenceWordFormations(text)
+        normed_tweets[tweet_id] = newText
+
+        #print(tweets[tweet_id])
+        #print(text)
+        #print(newText)
+        #print('---')
+
     return normed_tweets
+
 
 def remove_characters(text, chars_to_remove):
     # for the regex, given a list of characters, put a '\' before each one, and separate them by a '|':
@@ -95,11 +118,18 @@ def validate_ending(text):
     return text
 
 def remove_urls(text):
-    # Doesn't catch urls without http[s] in the beginning.
+    # remove patterns of websites starting with http[s]://
     url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
     urls_in_text = re.findall(url_regex, text)
     for url in urls_in_text:
         text = text.replace(url, "")
+
+    # also remove URLS starting with www and not with http[s]://
+    url_regex = 'www.(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    urls_in_text = re.findall(url_regex, text)
+    for url in urls_in_text:
+        text = text.replace(url, "")
+
     return text
 
 def replace_expanded_characters(text):
@@ -172,10 +202,106 @@ def clean_hashtags(text):
 
     return text
 
+def get_twitter_lexicon():
+    '''
+    Creates and returns the Twitter lexicon.
+    :return: A dictionary of key:TwitterWord value:RealWord
+    '''
+    twitter_lexicon = {}
+    with open('../../resources/normalization/twitter_lexicon.txt', 'r') as fIn:
+        for line in fIn:
+            parts = line.split()
+            twitter_lexicon[parts[0]] = parts[1]
+
+    return twitter_lexicon
+
+def get_twitter_emoji():
+    '''
+    Creates and returns the Twitter emoji list.
+    :return: A list of emoticon strings.
+    '''
+    emoji = []
+    with open('../../resources/normalization/twitter_emoji.txt', 'r') as fIn:
+        for line in fIn:
+            emoji.append(line.strip())
+    return emoji
+
+def replace_words_by_lexicon(text, lexicon):
+    '''
+    Replaces the words that are of Twitter lexicon (e.g. 2mrw) to actual words from the given lexicon dictionary.
+    :param text:
+    :param lexicon: Dictionary with key:TwitterWord value:actualWord
+    :return:
+    '''
+    # ignore a tweets that is all uppercase:
+    if text.isupper():
+        return text
+
+    # if a word is not all uppercase and it is in the lexicon, replace it:
+    tweetWords = text.split()
+    newWordsList = [lexicon[word] if not word.isupper() and word.lower() in lexicon else word for word in tweetWords]
+    # There is also a possiblity of stripping away punctuation from a word before checking if it's in the lexicon,
+    # but then put it back. (Use word.strip('.!?;:,\'"')
+    newText = ' '.join(newWordsList)
+    #if text != newText:
+    #    print(text+'\n'+newText+'\n\n')
+    return  newText
+
+def isDottedAcronym(word):
+    '''
+    Is the given word a dotted acronym such as "u.s.", "i.e.", etc.
+    :param wordwordCounts:
+    :return:
+    '''
+    # get all the acronyms that have dots (ignore one letter and dot):
+    matches = re.finditer(r'(?:[A-Z|a-z]\.)+', word)
+    dottedAcronyms = [m.group(0) for m in matches if len(m.group(0)) > 2]
+    # check if the acronym is equal to the original word:
+    for acr in dottedAcronyms:
+        if acr == word:
+            return True
+    return False
+
+
+def split_connected_words(text):
+    '''
+    Splits words on camelCase or on basic punctuation (sets dotted acronyms to uppercase).
+    :param text:
+    :return:
+    '''
+    tweetWords = text.split()
+    newWordsList = [split_connected_word(word) for word in tweetWords]
+    newText = ' '.join(newWordsList)
+    return newText
+
+def split_connected_word(word):
+    '''
+    Splits a word on camelCase or on basic punctuation.
+    :param word:
+    :return:
+    '''
+    # ignore dotted abbreviations (just capitalize them):
+    if isDottedAcronym(word):
+        return word.upper()
+
+    matches = re.finditer('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[.!?:;,])(?=[A-Z]|[a-z])|$)', word)
+    newWordsList = [m.group(0) for m in matches]
+    newText = ' '.join(newWordsList)
+    # TODO: Put a perios between the split words? Many times when words are connected, there is a sentence split there.
+    #if word != newText:
+    #    print(word + '\n' + newText + '\n\n')
+    return newText
+
+
 '''
 For testing. Pass in a text file with sentences (line by line).
 Pass in -file to write output to a file (inputFile.out) or -console to write to the terminal.
 A testing file exists in ../../examples/tweetsToNormalizeTest.txt
+
+Run:
+    python tweet_normalization.py ../../examples/tweetsToNormalizeTest.txt -file
+To see output in file run:
+    vi ../../examples/tweetsToNormalizeTest.txt.out
 '''
 if __name__ == '__main__':
     if len(sys.argv) > 2:

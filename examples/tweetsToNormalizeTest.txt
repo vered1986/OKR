@@ -99,3 +99,6 @@ test(abc)$%defg[ert]asdklj((sdsd))sdsd[[sdsd]]sdsd
 abcdefg(hij(klmn)) opqr stu [v[wx]yz]
 http://what.com abcdefg https://www.testing.co.uk http://www.google.com www.cs.biu.ac.il
 hi #this is @a test 123
+this is www.abc.com http://www.123.com https://www.a1b2.co.il www.12.io www. another hjkl.com www.ghj.com.
+another  test inThe u.S.a. this is.:wq
+
