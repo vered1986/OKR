@@ -34,14 +34,19 @@ The entailment component requires resources. The entity entailment resource file
 This version contains code to generate the OKR directly from a cluster of raw sentences, using an automatic pipeline system. most of the source code for the automatic system is in src/baseline_automatic_pipeline_system, but other directories are still partially required and used. 
 
 <b> Installation Instructions: </b>
+
 The following installations requires super-user privileges. Is you don't have such privileges for your working environment, we suggest you work in a virtual environment.
+
 First, install the requirements from requirements.txt:
+
 `pip install -r requirements.txt`
 
 We are using SpaCy for tokenization and Named Entity Recognition. Download SpaCy's model for English:
+
 `python -m spacy download en`
 
 Additionally, we are using [PropS](https://github.com/gabrielStanovsky/props) for extracting Predicate-Argument structures from the sentence. Download and install PropS:
+
 ```
 git clone git@github.com:gabrielStanovsky/props.git
 cd props
@@ -49,9 +54,11 @@ python ./setup.py install
 ```
 
 <b> Running the Automatic Pipeline System </b>
+
 The scripts should be run from the OKR base directory. 
 
 To execute an evaluation of the automatic system on the test set, run:
+
 `python src/baseline_automatic_pipeline_system/eval_auto_pipeline.py --input=data/baseline/test_input --gold=data/baseline/test`
 
 ## Detailed description of the OKR object:
