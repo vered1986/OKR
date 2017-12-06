@@ -1,4 +1,4 @@
-from spacy import en
+from spacy.lang import en
 
 STOP_WORDS = en.STOP_WORDS
 

@@ -208,7 +208,8 @@ def get_twitter_lexicon():
     :return: A dictionary of key:TwitterWord value:RealWord
     '''
     twitter_lexicon = {}
-    with open('../../resources/normalization/twitter_lexicon.txt', 'r') as fIn:
+    #with open('../../resources/normalization/twitter_lexicon.txt', 'r') as fIn:
+    with open('resources/normalization/twitter_lexicon.txt', 'r') as fIn:
         for line in fIn:
             parts = line.split()
             twitter_lexicon[parts[0]] = parts[1]
@@ -221,7 +222,8 @@ def get_twitter_emoji():
     :return: A list of emoticon strings.
     '''
     emoji = []
-    with open('../../resources/normalization/twitter_emoji.txt', 'r') as fIn:
+    #with open('../../resources/normalization/twitter_emoji.txt', 'r') as fIn:
+    with open('resources/normalization/twitter_emoji.txt', 'r') as fIn:
         for line in fIn:
             emoji.append(line.strip())
     return emoji
@@ -239,7 +241,7 @@ def replace_words_by_lexicon(text, lexicon):
 
     # if a word is not all uppercase and it is in the lexicon, replace it:
     tweetWords = text.split()
-    newWordsList = [lexicon[word] if not word.isupper() and word.lower() in lexicon else word for word in tweetWords]
+    newWordsList = [lexicon[word.lower()] if not word.isupper() and word.lower() in lexicon else word for word in tweetWords]
     # There is also a possiblity of stripping away punctuation from a word before checking if it's in the lexicon,
     # but then put it back. (Use word.strip('.!?;:,\'"')
     newText = ' '.join(newWordsList)
