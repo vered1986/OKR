@@ -24,7 +24,7 @@ from nltk.corpus import wordnet as wn
 from clustering_common import cluster_mentions,cluster_mentions_with_max_cluster
 
 # Don't use spacy tokenizer, because we originally used NLTK to tokenize the files and they are already tokenized
-nlp = spacy.load('en')
+nlp = English()
 
 def is_stop(w):
 	return w in spacy.lang.en.STOP_WORDS

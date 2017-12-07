@@ -43,8 +43,8 @@ class PropSWrapper:
         self.get_zero_args = get_zero_args
         self.get_conj = get_conj
         load_berkeley(tokenize = False)
-        import spacy
-        self.spacy = spacy.load('en')
+        from spacy.lang.en import English
+        self.spacy = English()
 
     def _init_internal_state(self):
         """
