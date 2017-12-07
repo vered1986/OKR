@@ -4,14 +4,17 @@ Author: Shany Barhom
 Evaluation for automatic pipeline .
 Run it from base OKR directory.
 
-Usage: eval_auto_pipeline --input=INPUT_FOLDER --gold=GOLD_STANDARD_FOLDER
+Usage:  eval_auto_pipeline --input=INPUT_FOLDER --gold=GOLD_STANDARD_FOLDER
+or:     eval_auto_pipeline --input=INPUT_FILE --gold=GOLD_STANDARD_FILE
 
-INPUT_FOLDER: the folder that contains the input files (text files)
-GOLD_STANDARD_FOLDER: the folder that contains the corresponding gold standard files (XML files)
+INPUT_FOLDER/FILE: the folder that contains the input files (text files) / a single input file
+GOLD_STANDARD_FOLDER/FILE: the folder that contains the corresponding gold standard files (XML files) / a single gold file
 
-Usage example: eval_auto_pipeline --input=data/baseline/test_input --gold=data/baseline/test
+Usage example: 
+ python src/baseline_automatic_pipeline_system/eval_auto_pipeline.py \
+ --input=data/baseline/test_input --gold=data/baseline/test
 
-NOTE - the name of an input file should be the same name as the
+NOTE - when specifying folders, the name of each input file should be the same name as the
 corresponding gold file (or at least start with the same name as the gold file)
 
 """
@@ -32,18 +35,28 @@ from eval_predicate_coref import eval_predicate_coref_between_two_graphs
 from eval_predicate_mention import evaluate_predicate_mention_between_two_graphs
 
 
-def eval_auto_pipeline(input_folder,gold_folder):
+def eval_auto_pipeline(input_path,gold_path):
     """
     Evaluate entity coreference, predicate coreference, entity and predicate extraction
     for auto-created graphs and their gold graphs
-    :param input_folder: Path to the input files folder (text files)
-    :param gold_folder: Path to the gold graphs folder (xml files)
+    :param input_path: Path to the input files folder, or to a single input file (text files) 
+    :param gold_path: Path to the gold graphs folder, or to a single gold graph file (xml files)
     :return:
     """
+    assert os.path.isfile(input_path) or os.path.isdir(input_path), "--input must be file or a directory"
+    assert os.path.isfile(gold_path) or os.path.isdir(gold_path), "--gold must be file or a directory"
 
-    input_files = [f for f in os.listdir(input_folder)]
-    gold_files = [f for f in os.listdir(gold_folder)]
-
+    if os.path.isfile(input_path) and os.path.isfile(gold_path):
+        input_files = [os.path.basename(input_path)]
+        gold_files = [os.path.basename(gold_path)]
+        input_path = os.path.dirname(input_path)
+        gold_path = os.path.dirname(gold_path)
+    elif os.path.isdir(input_path) and os.path.isdir(gold_path):
+        input_files = [f for f in os.listdir(input_path)]
+        gold_files = [f for f in os.listdir(gold_path)]
+    else:
+        raise StandardError("--input and --gold arguments must be of the same type, file or directory")
+    
     # TODO: Add automatic matching between input files and gold files
 
     sorted_input = sorted(input_files)
@@ -57,7 +70,7 @@ def eval_auto_pipeline(input_folder,gold_folder):
 
     for input_file,gold_file in zip(sorted_input,sorted_gold):
         print 'Evaluate input file '+ input_file + ' with gold file ' + gold_file
-        gold_graph = load_graph_from_file(os.path.join(gold_folder, gold_file))
+        gold_graph = load_graph_from_file(os.path.join(gold_path, gold_file))
         # for prediction, take only sentences occurring in the gold (in propositions or entities
         annotated_sentences = set([str(m.sentence_id)
                                    for prop in gold_graph.propositions.values()
@@ -66,7 +79,7 @@ def eval_auto_pipeline(input_folder,gold_folder):
                                    for entity in gold_graph.entities.values()
                                    for m in entity.mentions.values()])
 
-        predicted_sentences = get_raw_sentences_from_file(os.path.join(input_folder, input_file))
+        predicted_sentences = get_raw_sentences_from_file(os.path.join(input_path, input_file))
         sentences = {sentence_id : sentence
                      for sentence_id, sentence in predicted_sentences.iteritems()
                      if sentence_id in annotated_sentences}
@@ -129,8 +142,8 @@ if __name__ == "__main__":
 
     # Parse arguments
     args = docopt(__doc__)
-    input_folder = args["--input"]
-    gold_folder = args["--gold"]
+    input_path = args["--input"]
+    gold_path = args["--gold"]
 
     print 'Running Evaluation...'
-    eval_auto_pipeline(input_folder=input_folder, gold_folder=gold_folder)
+    eval_auto_pipeline(input_path=input_path, gold_path=gold_path)
