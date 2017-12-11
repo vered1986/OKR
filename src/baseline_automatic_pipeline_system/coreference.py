@@ -3,9 +3,9 @@
 Evaluation for entity coreference resolution using gold entity mentions.
 Run it from base OKR directory.
 
-Usage: coreference --gold=GOLD_STANDARD_FOLDER
+Usage: coreference --gold=GOLD_STANDARD
 
-GOLD_STANDARD_FOLDER: the folder that contains the gold standard files (XML files)
+GOLD_STANDARD: can be a folder that contains the gold standard files (XML files) or a single gold file (in XML format)
 
 Usage example: coreference --gold=data/baseline/test
 
@@ -171,9 +171,14 @@ def some_arg_match(prop_mention1_info, prop_mention2_info, argument_clusters, ar
             prop_mention2_args) - matched_arguments) >= arg_match_ratio)
 
 
-def eval_coref_with_gold_mentions(gold_folder):
+def eval_coref_with_gold_mentions(gold):
     entity_coref_scores = []
-    gold_graphs = load_graphs_from_folder(gold_folder)
+
+    # checking whether the input is a folder or a single file
+    if os.path.isdir(gold):
+        gold_graphs = load_graphs_from_folder(gold)
+    else:
+        gold_graphs = [load_graph_from_file(gold)]
 
     for gold_graph in gold_graphs:
         # evaluating entity coreference with gold mentions
@@ -184,15 +189,14 @@ def eval_coref_with_gold_mentions(gold_folder):
         curr_entity_scores =  eval_clusters(entity_clusters_for_eval, gold_graph)
         entity_coref_scores.append(curr_entity_scores)
 
-
     entity_coref_scores = np.mean(entity_coref_scores, axis=0).tolist()
+
     entity_muc, entity_b_cube, entity_ceaf_c, entity_mela = entity_coref_scores
     print 'Entity coreference: MUC=%.3f, B^3=%.3f, CEAF_C=%.3f, MELA=%.3f' % \
           (entity_muc, entity_b_cube, entity_ceaf_c, entity_mela)
 
 
 if __name__ == '__main__':
-
     args = docopt(__doc__)
     gold_folder = args["--gold"]
     eval_coref_with_gold_mentions(gold_folder)
