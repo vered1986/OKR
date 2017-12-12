@@ -171,32 +171,36 @@ def some_arg_match(prop_mention1_info, prop_mention2_info, argument_clusters, ar
             prop_mention2_args) - matched_arguments) >= arg_match_ratio)
 
 
-def eval_coref_with_gold_mentions(gold):
-    entity_coref_scores = []
-
-    # checking whether the input is a folder or a single file
-    if os.path.isdir(gold):
-        gold_graphs = load_graphs_from_folder(gold)
-    else:
-        gold_graphs = [load_graph_from_file(gold)]
-
-    for gold_graph in gold_graphs:
-        # evaluating entity coreference with gold mentions
-        entity_mentions_for_clustering = [(str(mention), unicode(mention.terms)) for entity in gold_graph.entities.values() for mention in
-                    entity.mentions.values()]
-        entity_clusters = cluster_entity_mentions(entity_mentions_for_clustering)
-        entity_clusters_for_eval = [set([item[0] for item in cluster]) for cluster in entity_clusters]
-        curr_entity_scores =  eval_clusters(entity_clusters_for_eval, gold_graph)
-        entity_coref_scores.append(curr_entity_scores)
-
-    entity_coref_scores = np.mean(entity_coref_scores, axis=0).tolist()
-
-    entity_muc, entity_b_cube, entity_ceaf_c, entity_mela = entity_coref_scores
-    print 'Entity coreference: MUC=%.3f, B^3=%.3f, CEAF_C=%.3f, MELA=%.3f' % \
-          (entity_muc, entity_b_cube, entity_ceaf_c, entity_mela)
+def eval_entity_coref_with_gold_graph(gold_graph):
+    """
+    Evaluating entity coreference with gold mentions, against gold clusters.
+    :param gold_graph: OKR object
+    :return: MUC, B^3, CEAF_C, MELA
+    """
+    entity_mentions_for_clustering = [(str(mention), unicode(mention.terms)) for entity in gold_graph.entities.values()
+                                      for mention in
+                                      entity.mentions.values()]
+    entity_clusters = cluster_entity_mentions(entity_mentions_for_clustering)
+    entity_clusters_for_eval = [set([item[0] for item in cluster]) for cluster in entity_clusters]
+    curr_entity_scores = eval_clusters(entity_clusters_for_eval, gold_graph)
+    return curr_entity_scores
 
 
 if __name__ == '__main__':
     args = docopt(__doc__)
-    gold_folder = args["--gold"]
-    eval_coref_with_gold_mentions(gold_folder)
+    gold_path = args["--gold"]
+    # checking whether the input is a folder or a single file
+    if os.path.isdir(gold_path):
+        gold_graphs = load_graphs_from_folder(gold_path)
+    else:   # single gold file
+        gold_graphs = [load_graph_from_file(gold_path)]
+    # evaluate on each file
+    entity_coref_scores = []
+    for gold_graph in gold_graphs:
+        entity_coref_scores.append(eval_entity_coref_with_gold_graph(gold_graph))
+    # compute mean of scores above files
+    entity_coref_scores = np.mean(entity_coref_scores, axis=0).tolist()
+    # report
+    entity_muc, entity_b_cube, entity_ceaf_c, entity_mela = entity_coref_scores
+    print 'Entity coreference: MUC=%.3f, B^3=%.3f, CEAF_C=%.3f, MELA=%.3f' % \
+          (entity_muc, entity_b_cube, entity_ceaf_c, entity_mela)
