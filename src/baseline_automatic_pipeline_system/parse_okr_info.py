@@ -28,6 +28,9 @@ from dict_utils import rename_attribute
 import okr
 import coreference
 
+import spacy
+spacy_pipe = spacy.load('en_core_web_sm')
+
 props_wrapper = PropSWrapper(get_implicits=False,
                   get_zero_args=False,
                   get_conj=False)
@@ -47,7 +50,7 @@ def get_raw_sentences_from_file(input_fn):
     return sentences_dict
 
 # step 2
-def parse_single_sentences(raw_sentences):
+def parse_tweets(raw_sentences):
     """ Return a dict of { sentence_id : parsed single-sentence representation } . uses props as parser.
     @:arg raw_sentences: a { sentence_id : raw_sentence } dict. 
     """
@@ -58,13 +61,103 @@ def parse_single_sentences(raw_sentences):
     # parse each tweet and store entity and proposition extractions
     parsed_sentences = {}
     for sent_id, sent in normed_sentences.iteritems():
-        try:
-            props_wrapper.parse(sent)
-            parsed_sentences[sent_id] = props_wrapper.get_okr()
-        except Exception as e:
-            logging.error("failed to parse sentence: " + sent +" | Error: " + str(e))
+        # try:
+        #     parsed_sentences[sent_id] = parse_tweet(sent)
+        # except Exception as e:
+        #     logging.error("failed to parse sentence: " + sent +" | Error: " + str(e))
+        parsed_sentences[sent_id] = parse_tweet(sent)
 
     return parsed_sentences
+
+def parse_tweet(tweet_text):
+    """ 
+    parse tweet - return a dict of tweet's propositions and entities.
+     We use SpaCy sentence segmentation to split the original tweet into grammatical sentences.
+     on each such sentence, we run the props_wrapper. Then, we accumulate the outputs to one output.
+    """
+    def props_parse(sent):
+        props_wrapper.parse(sent)
+        return props_wrapper.get_okr()
+
+    #return props_parse(tweet_text)
+
+    # use Spacy to segment tweet to sentences
+    doc = spacy_pipe(unicode(tweet_text))
+    # parse each sentence separately using props
+    props_parses = [props_parse(s.text) for s in doc.sents]
+    # return a merge of the parses
+    return combine_parses(doc, props_parses)
+
+def combine_parses(spacy_doc, props_parses):
+    # combine parses into one
+
+    def replace_in_tuple(tup, index, new_value):
+        l = list(tup)
+        l[index] = new_value
+        return tuple(l)
+
+    def replace_concept_in_template(prop, old_concept, new_concept):
+        prop["Template"] = prop["Template"].replace("{" + old_concept + "}", "{" + new_concept + "}")
+
+    def replace_concept_id(parse, concept_id, new_concept_id, type):
+        assert type in ["Entities", "Predicates"]
+        # replace id in Entity\Predicate dict
+        val = parse[type].pop(concept_id)
+        parse[type][new_concept_id] = val
+        # replace in propositions arguments
+        for arg_list in [p["Arguments"] for p in parse["Predicates"].values()]:
+            if concept_id in arg_list:
+                arg_list.remove(concept_id)
+                arg_list.append(new_concept_id)
+        # replace in propositions template
+        for p in parse["Predicates"].values():
+            replace_concept_in_template(p, concept_id, new_concept_id)
+
+    def modify_prop_indice(prop, start_index):
+        if not prop['Bare predicate'][0] == "IMPLICIT":
+            prop['Bare predicate'] = replace_in_tuple(prop['Bare predicate'],
+                                                      1,
+                                                      tuple(i+start_index for i in prop['Bare predicate'][1]))
+            prop['Head']['Surface'] = replace_in_tuple(prop['Head']['Surface'],
+                                                       1,
+                                                       list(i+start_index for i in prop['Head']['Surface'][1]))
+    # iterate all parses with their corresponding spacy span
+    for span, parse in zip(spacy_doc.sents, props_parses):
+        # modify entities
+        for ent_id, ent in parse["Entities"].items():
+            # modify indices
+            new_indices = tuple(i+span.start for i in parse["Entities"][ent_id][1])
+            parse["Entities"][ent_id] = replace_in_tuple(parse["Entities"][ent_id],
+                                                         1,
+                                                         new_indices)
+            # modify concept-id - temporary, save span.start before underscore to
+            new_ent_id = str(span.start) + "_" + ent_id
+            replace_concept_id(parse, ent_id, new_ent_id, "Entities")
+        for prop_id, prop in parse["Predicates"].items():
+            # modify indices
+            modify_prop_indice(prop, span.start)
+            # modify concept-id - temporary, save span.start before underscore to
+            replace_concept_id(parse, prop_id, str(span.start) + "_" + prop_id, "Predicates")
+    # merge all parses to one merged parse
+    entities = { ent_id : ent for parse in props_parses for ent_id, ent in parse["Entities"].iteritems() }
+    predicates = { prop_id : prop for parse in props_parses for prop_id, prop in parse["Predicates"].iteritems() }
+    merged_parse = {"Entities" : entities,
+                    "Predicates" : predicates,
+                    "Sentence" : str(spacy_doc.text)}
+    # modify all concept_ids to be subsequent without preceding number+underscore
+    # entities
+    old_ent_ids = sorted(entities.keys(), key=lambda id: entities[id][1][0])
+    for i, old_id in enumerate(old_ent_ids, start=1):
+        new_id = "A" + str(i)
+        replace_concept_id(merged_parse, old_id, new_id, "Entities")
+    # predicates
+    old_pred_ids = sorted(predicates.keys(), key=lambda id: predicates[id]['Bare predicate'][1][0])
+    for i, old_id in enumerate(old_pred_ids, start=1):
+        new_id = "P" + str(i)
+        replace_concept_id(merged_parse, old_id, new_id, "Predicates")
+
+    return merged_parse
+
 
 #step 3
 def get_mention_lists(parsed_sentences):
@@ -389,7 +482,7 @@ def auto_pipeline_okr_info(sentences):
     okr_v1 can be initialized using:
         okr.OKR(**okr_info)
     """
-    parsed_sentences = parse_single_sentences(sentences)
+    parsed_sentences = parse_tweets(sentences)
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
     entities = cluster_entities(all_entity_mentions)
     propositions = cluster_propositions(all_proposition_mentions, all_entity_mentions, entities)
@@ -414,7 +507,7 @@ if __name__ == "__main__":
         okr_info = auto_pipeline_okr_info(sentences)
     We are using the full pipeline explicitly, for debug purposes.
     """
-    parsed_sentences = parse_single_sentences(sentences)
+    parsed_sentences = parse_tweets(sentences)
     all_entity_mentions, all_proposition_mentions = get_mention_lists(parsed_sentences)
     # coreference
     entities = cluster_entities(all_entity_mentions)

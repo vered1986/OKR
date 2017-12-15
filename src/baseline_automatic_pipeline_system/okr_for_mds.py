@@ -193,7 +193,7 @@ if __name__ == "__main__":
     tweets_strings = {tweet_id : tweet["string"] for tweet_id, tweet in tweets.iteritems() }
     # retrieve okr info - explicitly call all pipeline stages, for debugging
     import parse_okr_info as prs
-    parsed_sentences = prs.parse_single_sentences(tweets_strings)
+    parsed_sentences = prs.parse_tweets(tweets_strings)
     all_entity_mentions, all_proposition_mentions = prs.get_mention_lists(parsed_sentences)
     entities = prs.cluster_entities(all_entity_mentions)
     propositions = prs.cluster_propositions(all_proposition_mentions, all_entity_mentions, entities)

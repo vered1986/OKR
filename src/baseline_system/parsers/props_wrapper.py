@@ -193,7 +193,7 @@ class PropSWrapper:
                     "Lemma": PropSWrapper.IMPLICIT_SYMBOL[0],
                     "POS": PropSWrapper.IMPLICIT_SYMBOL[0]
                 },
-                "Arguments": arg_symbols
+                "Arguments": list(arg_symbols)
             }
 
     # retrieve spacy's named entities, only those with relevant label
