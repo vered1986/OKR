@@ -63,7 +63,7 @@ def parse_tweets(raw_sentences):
     for sent_id, sent in normed_sentences.iteritems():
         try:
             parsed_sentences[sent_id] = parse_tweet(sent)
-	except Exception as e:
+        except Exception as e:
             logging.error("failed to parse sentence: " + sent +" | Error: " + str(e))
     return parsed_sentences
 
@@ -81,7 +81,10 @@ def parse_tweet(tweet_text):
     doc = spacy_pipe(unicode(tweet_text))
     # parse each sentence separately using props
     props_parses = [props_parse(s.text) for s in doc.sents]
-    # return a merge of the parses
+    # if single sentence, return props parse
+    if len(props_parses)==1:
+        return props_parses[0]
+    # if multiple sentences in tweet, return a merge of the parses
     return combine_parses(doc, props_parses)
 
 def combine_parses(spacy_doc, props_parses):
