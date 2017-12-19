@@ -61,12 +61,10 @@ def parse_tweets(raw_sentences):
     # parse each tweet and store entity and proposition extractions
     parsed_sentences = {}
     for sent_id, sent in normed_sentences.iteritems():
-        # try:
-        #     parsed_sentences[sent_id] = parse_tweet(sent)
-        # except Exception as e:
-        #     logging.error("failed to parse sentence: " + sent +" | Error: " + str(e))
-        parsed_sentences[sent_id] = parse_tweet(sent)
-
+        try:
+            parsed_sentences[sent_id] = parse_tweet(sent)
+	except Exception as e:
+            logging.error("failed to parse sentence: " + sent +" | Error: " + str(e))
     return parsed_sentences
 
 def parse_tweet(tweet_text):
@@ -78,8 +76,6 @@ def parse_tweet(tweet_text):
     def props_parse(sent):
         props_wrapper.parse(sent)
         return props_wrapper.get_okr()
-
-    #return props_parse(tweet_text)
 
     # use Spacy to segment tweet to sentences
     doc = spacy_pipe(unicode(tweet_text))
